@@ -1,0 +1,284 @@
+#!/usr/bin/env bash
+# Discord Bot Monitor and Auto-Restart Script
+# Monitors Discord bots and restarts them when needed
+
+# set -x
+
+BOTS=("brooke" "harriet") # alex devon
+BOT_SCRIPT="discord-bot.js"
+
+BOT_DIR="/Users/joseph/Documents/Source/Managed/zds-ai-discord-bot"
+PIDFILE="/tmp/botctl.pid"
+MAX_LOAD_THRESHOLD=15
+EMERGENCY_LOAD_THRESHOLD=30
+HIGH_LOAD_COUNT=0
+MAX_HIGH_LOAD_COUNT=5
+MONITORING=false
+
+# Log command invocation
+logger -p user.info "discord-bot: Command invoked: $0 $*"
+
+# Change to bot directory
+cd "$BOT_DIR" || {
+  echo "Error: Cannot change to bot directory: $BOT_DIR" >&2
+  logger -p user.error "discord-bot: Fatal Error: Failed to change to directory $BOT_DIR"
+  exit 1
+}
+
+
+
+# Handle interruption signals
+trap 'die 130 "Interrupted by user (Ctrl+C)"' SIGINT
+
+log_message() {
+  if [[ "$MONITORING" == "true" ]]; then
+    logger -p user.info "discord-bot: $1"
+  else
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+  fi
+}
+
+get_load_avg() {
+  uptime | awk -F'load averages?: ' '{print $2}' | awk '{print $1}'
+}
+
+get_load_int() {
+  get_load_avg | cut -d . -f 1
+}
+
+is_bot_running() {
+  declare -r BOT_NAME="$1"
+  pgrep -f "$BOT_SCRIPT $BOT_NAME" > /dev/null
+}
+
+is_monitor_running() {
+  if [[ -f "$PIDFILE" ]]; then
+    local pid=$(cat "$PIDFILE")
+    kill -0 "$pid" 2>/dev/null
+  else
+    false
+  fi
+}
+
+stop_monitor() {
+  if is_monitor_running; then
+    local pid=$(cat "$PIDFILE")
+    log_message "🛑 Stopping existing monitor (PID $pid)"
+    kill "$pid" 2>/dev/null || true
+    sleep 2
+
+    if kill -0 "$pid" 2>/dev/null; then
+      log_message "⚠️  Monitor still running, force killing..."
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+
+    rm -f "$PIDFILE"
+    log_message "✅ Monitor stopped"
+  fi
+}
+
+start_single_bot() {
+  declare -r BOT_NAME="$1"
+
+  if is_bot_running "$BOT_NAME"; then
+    log_message "✅ $BOT_NAME bot already running"
+    return 0
+  fi
+
+  declare -r LOG_FILE="data/logs/${BOT_NAME}-bot.log"
+
+  nohup node "$BOT_SCRIPT" "$BOT_NAME" > "$LOG_FILE" 2>&1 &
+
+  sleep 3
+
+  if is_bot_running "$BOT_NAME"; then
+    log_message "✅ $BOT_NAME bot started successfully"
+    return 0
+  else
+    log_message "❌ Failed to start $BOT_NAME bot"
+    return 1
+  fi
+}
+
+check_and_restart_bot() {
+  declare -r BOT_NAME="$1"
+
+  # Check if bot process is running
+  if ! is_bot_running "$BOT_NAME"; then
+    # Check system load before restarting
+    if [ "$(get_load_int)" -gt "$MAX_LOAD_THRESHOLD" ]; then
+      HIGH_LOAD_COUNT=$((HIGH_LOAD_COUNT + 1))
+      log_message "🚫 $BOT_NAME bot down but load too high ($(get_load_avg) > $MAX_LOAD_THRESHOLD) -- skipping restart (count: $HIGH_LOAD_COUNT/$MAX_HIGH_LOAD_COUNT)"
+
+      if [ "$HIGH_LOAD_COUNT" -ge "$MAX_HIGH_LOAD_COUNT" ]; then
+        die 1 "❌ System load too high for too long - exiting monitor"
+      fi
+
+      sleep 27
+      return
+    else
+      # Reset counter on normal load
+      HIGH_LOAD_COUNT=0
+    fi
+
+    log_message "⚠️  $BOT_NAME bot not running - restarting..."
+    start_single_bot "$BOT_NAME"
+  else
+    log_message "✅ $BOT_NAME bot running normally"
+  fi
+}
+
+restart_all_bots() {
+  # Kill any existing bots first
+  stop_all_bots
+  start_all_bots
+}
+
+start_all_bots() {
+  declare BOT
+
+  log_message "🚀 Starting ${#BOTS[@]} Discord bots..."
+
+  # Start all bots
+  for BOT in "${BOTS[@]}"; do
+    start_single_bot "$BOT"
+  done
+
+  log_message "🎯 ${#BOTS[@]} bots startup complete"
+}
+
+stop_all_bots() {
+  log_message "🛑 Stopping all Discord bots..."
+
+  # Kill all bot processes
+  pkill -f "$BOT_SCRIPT" 2>/dev/null || true
+  sleep 2
+
+  # Verify they're stopped
+  if pgrep -f "$BOT_SCRIPT" > /dev/null; then
+    log_message "⚠️  Some bots still running, force killing..."
+    pkill -9 -f "$BOT_SCRIPT" 2>/dev/null || true
+  fi
+
+  log_message "✅ All bots stopped"
+}
+
+show_status() {
+  declare BOT
+
+  echo "📊 Bot Status Report"
+  echo "==================="
+  echo "📈 System Load: $(get_load_avg)"
+  echo
+
+  if is_monitor_running; then
+    echo "🔍 Monitor: RUNNING (PID $(cat "$PIDFILE"))"
+  else
+    echo "❌ Monitor: STOPPED"
+  fi
+  echo
+
+  for BOT in "${BOTS[@]}"; do
+    if is_bot_running "$BOT"; then
+      echo "✅ $BOT bot: RUNNING"
+    else
+      echo "❌ $BOT bot: STOPPED"
+    fi
+  done
+}
+
+monitor_loop() {
+  if is_monitor_running; then
+    die 1 "❌ Monitor already running (PID $(cat "$PIDFILE"))"
+  fi
+
+  MONITORING=true
+  echo $$ > "$PIDFILE"
+  trap 'rm -f "$PIDFILE"; die 0 "Monitor stopped"' EXIT
+
+  log_message "==============================="
+  log_message "NEW MONITOR SESSION STARTED, PID $$"
+  log_message "🔍 Starting continuous monitoring of ${#BOTS[@]} bots..."
+
+  while true; do
+    log_message "📊 System load: $(get_load_avg)"
+
+    # Check system load first - emergency shutdown if too high
+    if [ "$(get_load_int)" -gt "$EMERGENCY_LOAD_THRESHOLD" ]; then
+      log_message "🚨 EMERGENCY: Load extremely high ($(get_load_avg) > $EMERGENCY_LOAD_THRESHOLD) -- killing all bots and exiting"
+      stop_all_bots
+      die 2 "System load too high"
+    fi
+
+    # Check each bot
+    for BOT in "${BOTS[@]}"; do
+      check_and_restart_bot "$BOT"
+    done
+
+    # Wait 30 seconds before next check
+    sleep 30
+  done
+}
+
+start_monitor() {
+  if [[ "$1" != "--foreground" && "$1" != "-fg" ]]; then
+    nohup "$0" monitor --foreground > /dev/null 2>&1 &
+    echo "🔍 Monitor started in background (PID $!)"
+    exit 0
+  fi
+  monitor_loop
+}
+
+die() {
+  declare -r EXIT_CODE="$1"
+  declare -r MESSAGE="$2"
+  log_message "💀 dying with exit code $EXIT_CODE: $MESSAGE"
+  log_message "==============================="
+  exit "$EXIT_CODE"
+}
+
+# Handle script arguments
+case "${1:-help}" in
+  "start"|"run")
+    start_all_bots
+    ;;
+  "stop"|"kill")
+    stop_monitor
+    stop_all_bots
+    show_status
+    ;;
+  "restart")
+    restart_all_bots
+    ;;
+  "status"|"st")
+    show_status
+    ;;
+  "logs"|"log")
+    log show --predicate 'process == "logger" AND eventMessage CONTAINS "discord-bot:"' \
+        --info --debug --last 1h --style compact \
+      | sed 's/ logger\[[^]]*\] discord-bot: //'
+    ;;
+  "monitor"|"mon")
+    start_monitor "$2"
+    ;;
+  "restart-monitor"|"rmon")
+    stop_monitor
+    restart_all_bots
+    start_monitor "$2"
+    ;;
+  *)
+    HELP_WIDTH=28
+    echo "Usage: $0 [start|stop|restart|status|logs|monitor|restart-monitor]"
+    echo "These commands run once and exit:"
+    printf "  %-${HELP_WIDTH}s - %s\n" "start (run)" "Start all dead bots"
+    printf "  %-${HELP_WIDTH}s - %s\n" "stop (kill)" "Stop monitor and all bots"
+    printf "  %-${HELP_WIDTH}s - %s\n" "restart" "Restart all bots (kills existing)"
+    printf "  %-${HELP_WIDTH}s - %s\n" "status (st)" "Show bot and monitor status"
+    printf "  %-${HELP_WIDTH}s - %s\n" "logs (log)" "Show monitor logs from system log"
+    printf "  %-${HELP_WIDTH}s - %s\n" "help" "Show this help message"
+    echo "These commands run continuously until interrupted:"
+    printf "  %-${HELP_WIDTH}s - %s\n" "monitor (mon) [-fg]" "Monitor bots (background by default, -fg for foreground)"
+    printf "  %-${HELP_WIDTH}s - %s\n" "restart-monitor (rmon) [-fg]" "Stop monitor, restart bots, start new monitor"
+    exit 1
+    ;;
+esac

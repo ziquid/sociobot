@@ -1,0 +1,17 @@
+{
+  "name": "devon-discord-bot",
+  "version": "1.0.0",
+  "description": "Devon Discord Bot with Q CLI Integration",
+  "main": "devon-bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node devon-bot.js",
+    "dev": "node --watch devon-bot.js"
+  },
+  "author": "Devon (ZDS AI)",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.22.1",
+    "dotenv": "^17.2.2"
+  }
+}

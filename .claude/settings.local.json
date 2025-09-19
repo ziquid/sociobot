@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//private/tmp/**)",
+      "Read(//Users/joseph/.config/zai/**)",
+      "Read(//Users/joseph/.aws/amazonq/cli-agents/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
