@@ -12,8 +12,8 @@ async function getBotName(botName) {
 
   try {
     // Load bot's environment
-    dotenv.config({ path: `.env.${botName}` });
-
+    dotenv.config({ path: `.env.${botName}`, quiet: true });
+    
     if (!process.env.DISCORD_TOKEN) {
       throw new Error('DISCORD_TOKEN not found in env file');
     }

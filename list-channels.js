@@ -7,18 +7,21 @@
 
 import dotenv from 'dotenv';
 import { Client, Events, GatewayIntentBits, ChannelType } from "discord.js";
+import { loadLastProcessedMessages } from "./lib/persistence.js";
 
 const agentName = process.argv[2];
 const DISCOVER_DMS = process.argv.includes('--discover-dms');
+const DEBUG = process.argv.includes('--debug');
 
 if (!agentName) {
-  console.error('Usage: node list-channels.js <agent-name> [--discover-dms]');
+  console.error('Usage: node list-channels.js <agent-name> [--discover-dms] [--debug]');
   console.error('Example: node list-channels.js alex');
   console.error('         node list-channels.js alex --discover-dms');
+  console.error('         node list-channels.js alex --debug');
   process.exit(1);
 }
 
-dotenv.config({ path: `.env.${agentName}` });
+dotenv.config({ path: `.env.${agentName}`, quiet: true });
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
@@ -40,6 +43,41 @@ client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Bot logged in as ${readyClient.user.tag}`);
   console.log("\n=== CHANNELS BOT HAS ACCESS TO ===\n");
   
+  let lastMessages = {};
+  if (DEBUG) {
+    lastMessages = loadLastProcessedMessages(agentName);
+  }
+  
+  const getDebugInfo = async (channelId, channel) => {
+    if (!DEBUG) return '';
+    // Skip debug info for channels that don't support messages
+    if (channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildVoice) {
+      return '';
+    }
+    let info = '';
+    if (lastMessages[channelId]) {
+      try {
+        const lastMessage = await channel.messages.fetch(lastMessages[channelId]);
+        info = ` [Last: "${lastMessage.content.substring(0, 100)}"]`;
+      } catch (error) {
+        info = ` [Last: ${lastMessages[channelId]} - message not found]`;
+      }
+    } else {
+      try {
+        const recentMessages = await channel.messages.fetch({ limit: 1 });
+        if (recentMessages.size > 0) {
+          const recent = recentMessages.first();
+          info = ` [Last: no data in persistence file, Recent: "${recent.content.substring(0, 100)}"]`;
+        } else {
+          info = ` [Last: no data in persistence file, no messages found]`;
+        }
+      } catch (error) {
+        info = ` [Last: no data in persistence file, cannot fetch messages]`;
+      }
+    }
+    return info;
+  };
+  
   const typeNames = {
     [ChannelType.GuildText]: 'TEXT',
     [ChannelType.GuildVoice]: 'VOICE',
@@ -59,7 +97,8 @@ client.once(Events.ClientReady, async (readyClient) => {
     
     for (const [channelId, channel] of channels) {
       const typeName = typeNames[channel.type] || `TYPE_${channel.type}`;
-      console.log(`  ${typeName}: #${channel.name} (${channelId})`);
+      const debugInfo = await getDebugInfo(channelId, channel);
+      console.log(`  ${typeName}: #${channel.name} (${channelId})${debugInfo}`);
     }
     console.log();
   }
@@ -130,7 +169,8 @@ client.once(Events.ClientReady, async (readyClient) => {
   if (dmChannels.size > 0) {
     console.log('Direct Messages:');
     for (const [channelId, channel] of dmChannels) {
-      console.log(`  DM: ${channel.recipient?.username || 'Unknown'} (${channelId})`);
+      const debugInfo = await getDebugInfo(channelId, channel);
+      console.log(`  DM: ${channel.recipient?.username || 'Unknown'} (${channelId})${debugInfo}`);
     }
     console.log();
   }

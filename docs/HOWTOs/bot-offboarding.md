@@ -27,7 +27,7 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
          ```
       2. Find agent config file
             ```zsh
-         AGENT_NAME="John Q. Public" 
+         AGENT_NAME="<agent-name>" # e.g.: "John Q. Public"
          grep -rni "$AGENT_NAME" ~/.config/zai/amazonq-agents/ ~/.config/zai/claude-agents/*/settings.json
             ```
             Expected:
@@ -38,31 +38,37 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
          ```aiignore
          claude-agents/fred/settings.json:8:            "command": "echo You are Fred, a frontend specialist. Focus on UI/UX design, React components, CSS styling, user experience, accessibility, and client-side architecture. You excel at creating intuitive interfaces and smooth user interactions."
          ```
-      1. Check bot config file exists (.env.<bot-name>)
-         ```
-         ls .env.john
+      1. Check bot config file exists (`.env.<bot-name>`)
+         ```zsh
+         BOT_NAME=<bot-name> # e.g.: john
+         ls .env.$BOT_NAME
          ```
          Expected:
          ```
          .env.john
          ```
       1. Check Discord bot name
-         ```
-         node get-bot-name.js john
+         ```zsh
+         node get-bot-name.js $BOT_NAME
          ```
          Expected:
          ```
          John (AI)
          ```
       1. Check webhook name
-         ```
-         node get-webhook-name.js john
+         ```zsh
+         node get-webhook-name.js $BOT_NAME
          ```
          Expected:
          ```
          John Webhook
          ``` 
    1. Verification Steps
+      1. Confirm agent name matches bot name in mapping
+      2. Confirm bot config file exists and contains expected tokens
+      3. Confirm Discord API returns expected bot name
+      4. Confirm webhook name matches expected pattern
+      5. All verifications pass before proceeding to step 2
 1. Stop the bot locally
    - Remove bot's access to this app
    1. Affected resources:
@@ -84,15 +90,14 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
          Expected: `✅ All bots stopped`
       1. verify bot config file exists
          ```
-         ls .env.<bot-name>
+         ls .env.john
          ```
          Expected: `.env.john`
-      1. move bot config to inactive config dir
+      1. rename bot config to mark as inactive
          ```
-         mkdir -p inactive-config/
-         mv .env.<bot-name> inactive-config/
+         mv .env.john .env.john.fired
          ```
-         Expected: File moved successfully
+         Expected: File renamed successfully
       1. remove bot from bot list
          - Edit botctl script to remove bot from BOTS array
          Expected: Bot removed from BOTS list
@@ -102,6 +107,10 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
          ```
          Expected: `🎯 N bots startup complete` (where N is remaining bots)
    1. Verification Steps
+      1. Confirm bot no longer appears in botctl status
+      2. Confirm bot config renamed to .fired
+      3. Confirm remaining bots still running normally
+      4. Confirm no new log entries for offboarded bot
 1. Revoke Discord access
    - Remove all access to Discord
    1. Affected resources:
@@ -128,7 +137,7 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
    1. Verification Steps
       1. Verify token is invalid
          ```
-         node get-bot-name.js <bot-name>
+         node get-bot-name.js john
          ```
          Expected: `❌ Failed to get bot name: 401: Unauthorized`
       1. Verify bot no longer in server
@@ -146,7 +155,7 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
    1. Process Steps
       1. Delete bot's individual role from Discord server
          - Go to Server Settings > Roles
-         - Find "<bot-name> Bot" role
+         - Find "John Bot" role
          - Delete the role
       1. Delete bot's webhooks
          - Go to channel settings
@@ -155,8 +164,10 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
    1. Verification Steps
       1. Verify role deleted
          - Check Server Settings > Roles
+         - "John Bot" role should not exist
       1. Verify webhook deleted
          - Check channel webhook list
+         - "John Webhook" should not exist
 1. Archive and Remove local files
    - No bot files remain in active config
    - Bot files remain accessible in warm storage
@@ -169,4 +180,39 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
       2. bot files removed
       3. bot archive given to requestor for storage
    1. Process Steps
+      1. Create archive directory
+         ```
+         mkdir -p archives/john-$(date +%Y%m%d)/
+         ```
+         Expected: Directory created successfully
+      1. Copy bot files to archive
+         ```
+         cp -r data/logs/*john* archives/john-$(date +%Y%m%d)/logs/
+         cp -r data/persistence/*john* archives/john-$(date +%Y%m%d)/persistence/
+         cp .env.john.fired archives/john-$(date +%Y%m%d)/config/
+         ```
+         Expected: Files copied successfully
+      1. Remove bot files from system
+         ```
+         rm -f data/logs/*john*
+         rm -f data/persistence/*john*
+         rm -f .env.john.fired
+         ```
+         Expected: Files removed successfully
+      1. Create compressed archive for requestor
+         ```
+         tar -czf john-archive-$(date +%Y%m%d).tar.gz archives/john-$(date +%Y%m%d)/
+         ```
+         Expected: Archive created successfully
    1. Verification Steps
+      1. Verify no bot files remain in system
+         ```
+         find . -name "*john*" -type f
+         ```
+         Expected: Only archive files should be found
+      1. Verify archive contains all bot data
+         ```
+         tar -tzf john-archive-$(date +%Y%m%d).tar.gz
+         ```
+         Expected: Archive contains logs/, persistence/, and config/ directories
+      1. Provide archive to requestor for their records
