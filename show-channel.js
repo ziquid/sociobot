@@ -29,6 +29,7 @@ client.once('clientReady', async () => {
     console.log(`Channel ${channelId}:`);
     console.log(`  Type: ${ChannelType[channel.type]} (${channel.type})`);
     console.log(`  Name: ${channel.name || 'N/A'}`);
+    console.log(`  Slowdown: ${channel.rateLimitPerUser || 0} seconds`);
     
     if (channel.type === ChannelType.DM) {
       console.log(`  Recipient: ${channel.recipient?.username} (${channel.recipient?.id})`);

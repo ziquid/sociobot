@@ -120,6 +120,17 @@ const client = new Client({
   ],
 });
 
+// Channel slowdown detection
+async function getChannelSlowdown(channelId) {
+  try {
+    const channel = await client.channels.fetch(channelId);
+    return channel.rateLimitPerUser || 0;
+  } catch (error) {
+    console.error(`Failed to fetch channel ${channelId}:`, error);
+    return 0; // Fallback to no slowdown
+  }
+}
+
 // Message filtering functions
 const isOwnBotMessage = (botUserId) => (msg) => msg.author.id === botUserId;
 const isAfterCutoff = (cutoffId) => (msg) => !cutoffId || msg.id > cutoffId;
@@ -705,7 +716,11 @@ async function checkGuildChannels(readyClient, lastMessages) {
 }
 
 async function handleLowPriorityMessage(message) {
-  const delay = BOT_MESSAGE_DELAY + Math.random() * 3000; // Add up to 3s random
+  const channelSlowdown = await getChannelSlowdown(message.channel.id);
+  const baseDelay = channelSlowdown > 0 ? 
+    (channelSlowdown + 1) * 1000 : // Add 1sec buffer, convert to ms
+    BOT_MESSAGE_DELAY;
+  const delay = baseDelay + Math.random() * 3000; // Add up to 3s random
   // log(`Delaying bot message processing by ${Math.round(delay/1000)}s`);
   setTimeout(async () => {
     await handleRealtimeMessage(message);
@@ -881,7 +896,8 @@ client.on('messageCreate', async (message) => {
     }
   }
 
-  if (message.author.bot) {
+  const channelSlowdown = await getChannelSlowdown(message.channel.id);
+  if (message.author.bot || channelSlowdown > 0) {
     handleLowPriorityMessage(message);
   } else {
     await handleRealtimeMessage(message);

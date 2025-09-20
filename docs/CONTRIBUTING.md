@@ -130,6 +130,12 @@ Handles the core interaction with Claude Code CLI:
 
 ## Contributing Guidelines
 
+### Git Workflow
+
+- When asked to "commit the files", only commit what's already staged
+- DO NOT run `git add` unless explicitly told to add files
+- User manages staging - only run `git commit` when requested
+
 ### Code Style
 
 - Use modern JavaScript (ES6+)
