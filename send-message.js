@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Client, GatewayIntentBits, ChannelType } from 'discord.js';
+import { Client, GatewayIntentBits, ChannelType, EmbedBuilder } from 'discord.js';
 import dotenv from 'dotenv';
 import { splitMessage } from './lib/message-utils.js';
 
@@ -24,7 +24,7 @@ if (!agentName || !target) {
   process.exit(1);
 }
 
-dotenv.config({ path: `.env.${agentName}` });
+dotenv.config({ path: `.env.${agentName}`, quiet: true });
 
 if (!process.env.DISCORD_TOKEN) {
   console.error(`Error: No DISCORD_TOKEN found in .env.${agentName}`);
@@ -92,16 +92,27 @@ client.once('clientReady', async () => {
       console.log(`Sending to channel ${targetChannel.name}...`);
     }
     
-    const chunks = splitMessage(message);
-    
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const prefix = chunks.length > 1 ? `(${i + 1}/${chunks.length}) ` : '';
-      await targetChannel.send(prefix + chunk);
+    // Add metadata using embed footer if alex sending to bot-testing
+    if (agentName === 'alex' && targetChannel.name === 'bot-testing') {
+      const embed = new EmbedBuilder()
+        .setDescription(message)
+        .setFooter({ text: `acl:1 • Sent by a ZDS AI Agent • zds-agents.com` });
+
+      await targetChannel.send({ embeds: [embed] });
+    } else {
+      const chunks = splitMessage(message);
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const prefix = chunks.length > 1 ? `(${i + 1}/${chunks.length}) ` : '';
+        await targetChannel.send(prefix + chunk);
+      }
     }
     
-    console.log(`Message sent successfully (${chunks.length} chunk${chunks.length > 1 ? 's' : ''})`);
-    
+    if (agentName !== 'alex' || targetChannel.name !== 'bot-testing') {
+      console.log(`Message sent successfully (${chunks.length} chunk${chunks.length > 1 ? 's' : ''})`);
+    }
+
   } catch (error) {
     console.error('Failed to send message:', error.message);
     process.exit(1);

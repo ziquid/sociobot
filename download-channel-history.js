@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 
+import { chdir } from 'process';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+
+// Change to script directory so it can be called from anywhere
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const originalCwd = process.cwd();
+chdir(__dirname);
 import { Client, Events, GatewayIntentBits, ChannelType, Partials } from "discord.js";
 import { writeFileSync } from 'fs';
 
@@ -53,7 +62,7 @@ const outputIndex = process.argv.indexOf('--output');
 const outputFile = outputIndex !== -1 ? process.argv[outputIndex + 1] : null;
 
 // Load agent-specific .env file
-dotenv.config({ path: `.env.${agentName}` });
+dotenv.config({ path: `.env.${agentName}`, quiet: true });
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 if (!DISCORD_TOKEN) {
@@ -76,7 +85,16 @@ function formatMessage(message, format) {
   const timestamp = message.createdAt.toISOString();
   const author = message.author.username;
   const content = message.content || '[No content]';
-  
+
+  // Extract embed information
+  const embedInfo = message.embeds.map(embed => ({
+    title: embed.title || null,
+    description: embed.description || null,
+    footer: embed.footer?.text || null,
+    color: embed.color || null,
+    fields: embed.fields?.map(f => ({ name: f.name, value: f.value })) || []
+  }));
+
   switch (format) {
     case 'json':
       return {
@@ -89,18 +107,32 @@ function formatMessage(message, format) {
         },
         content,
         attachments: message.attachments.map(a => ({ name: a.name, url: a.url })),
-        embeds: message.embeds.length,
+        embeds: embedInfo,
         reactions: message.reactions.cache.size,
         reference: message.reference?.messageId || null
       };
-    
+
     case 'text':
-      return `[${timestamp}] ${author}: ${content}`;
-    
+      let textOutput = `[${timestamp}] ${author}: ${content}`;
+      if (embedInfo.length > 0) {
+        for (const embed of embedInfo) {
+          if (embed.footer) textOutput += ` [Footer: ${embed.footer}]`;
+          if (embed.description) textOutput += ` [Embed: ${embed.description}]`;
+        }
+      }
+      return textOutput;
+
     case 'markdown':
       const userMention = message.author.bot ? `**${author}** (bot)` : `**${author}**`;
-      return `### ${userMention} - ${timestamp}\n${content}\n`;
-    
+      let markdownOutput = `### ${userMention} - ${timestamp}\n${content}\n`;
+      if (embedInfo.length > 0) {
+        for (const embed of embedInfo) {
+          if (embed.description) markdownOutput += `\n*Embed:* ${embed.description}\n`;
+          if (embed.footer) markdownOutput += `\n*Footer:* ${embed.footer}\n`;
+        }
+      }
+      return markdownOutput;
+
     default:
       throw new Error(`Unsupported format: ${format}`);
   }
@@ -109,11 +141,11 @@ function formatMessage(message, format) {
 // Generate output filename
 function generateFilename(channelName, format) {
   if (outputFile) return outputFile;
-  
-  const timestamp = new Date().toISOString().split('T')[0];
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const safeName = channelName.replace(/[^a-zA-Z0-9-_]/g, '_');
   const extension = format === 'json' ? 'json' : format === 'markdown' ? 'md' : 'txt';
-  
+
   return `${safeName}_${timestamp}.${extension}`;
 }
 
@@ -183,9 +215,10 @@ async function downloadChannelHistory() {
       output += formattedMessages.join('\n');
     }
     
-    // Write to file
+    // Write to file in original directory
     const filename = generateFilename(channel.name || 'dm', format);
-    writeFileSync(filename, output, 'utf8');
+    const fullPath = `${originalCwd}/${filename}`;
+    writeFileSync(fullPath, output, 'utf8');
     
     console.log(`\nExport complete!`);
     console.log(`File: ${filename}`);
