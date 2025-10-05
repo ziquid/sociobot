@@ -82,6 +82,7 @@ const messageQueue = [];
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages,
@@ -770,6 +771,19 @@ client.once(Events.ClientReady, async (readyClient) => {
     log('Clear backlog complete, exiting');
     process.exit(0);
   }
+
+  // Fetch guild members in background to populate cache (async, non-blocking)
+  readyClient.guilds.fetch().then(guilds => {
+    for (const [guildId, guild] of guilds) {
+      readyClient.guilds.fetch(guildId).then(fullGuild => {
+        fullGuild.members.fetch().then(members => {
+          if (DEBUG) {
+            log(`Fetched ${members.size} members for ${fullGuild.name}: ${members.map(m => m.user.username).join(', ')}`);
+          }
+        }).catch(err => log(`Failed to fetch members for ${fullGuild.name}: ${err.message}`));
+      });
+    }
+  });
 
   // Check for missed messages based on scope
   if (shouldProcessDMs()) {

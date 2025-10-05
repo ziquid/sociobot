@@ -30,18 +30,34 @@ import path from 'path';
 
 // Bot configurations
 const BOTS = [
-  { name: 'alex', displayName: 'Alex Chen (DevOps)' },
-  { name: 'brooke', displayName: 'Brooke (Finance)' },
-  { name: 'harriet', displayName: 'Harriet (HR)' }
+  { name: 'aiden', displayName: 'Aiden (AI)' },
+  { name: 'alex', displayName: 'Alex Chen (AI)' },
+  { name: 'brooke', displayName: 'Brooke (AI)' },
+  { name: 'harriet', displayName: 'Harriet (AI)' },
+  { name: 'tara', displayName: 'Tara (AI)' },
+  { name: 'binti', displayName: 'Binti (AI)' }
 ];
 
-async function createWebhooks(channelId) {
+async function createWebhooks(channelId, targetBot) {
   console.log('🔧 Discord Webhook Creator Starting...');
   console.log(`📍 Target Channel ID: ${channelId}`);
-  
+
+  // Filter bots if specific bot requested
+  let botsToCreate = BOTS;
+  if (targetBot) {
+    botsToCreate = BOTS.filter(bot => bot.name === targetBot);
+    if (botsToCreate.length === 0) {
+      console.error(`❌ Bot '${targetBot}' not found. Available bots: ${BOTS.map(b => b.name).join(', ')}`);
+      process.exit(1);
+    }
+    console.log(`📌 Creating webhook only for: ${targetBot}`);
+  } else {
+    console.log(`📌 Creating webhooks for all bots`);
+  }
+
   // Use Alex's token for webhook creation (admin privileges)
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-  
+
   try {
     // Load Alex's token for webhook creation
     const alexEnv = fs.readFileSync('.env.alex', 'utf8');
@@ -49,26 +65,26 @@ async function createWebhooks(channelId) {
     if (!tokenMatch) {
       throw new Error('Could not find DISCORD_TOKEN in .env.alex');
     }
-    
+
     await client.login(tokenMatch[1]);
     console.log('✅ Connected to Discord');
-    
+
     const channel = await client.channels.fetch(channelId);
     if (!channel) {
       throw new Error(`Channel ${channelId} not found`);
     }
-    
+
     console.log(`📢 Creating webhooks in channel: ${channel.name}`);
-    
+
     const webhookResults = [];
-    
-    for (const bot of BOTS) {
+
+    for (const bot of botsToCreate) {
       console.log(`\n🤖 Creating webhook for ${bot.name}...`);
       
       try {
         const webhook = await channel.createWebhook({
           name: bot.displayName,
-          reason: `Webhook for ${bot.name} bot - created by Alex Chen webhook automation`
+          reason: `Webhook for ${bot.name} bot`
         });
         
         const result = {
@@ -114,8 +130,8 @@ async function updateEnvFile(botName, webhookData) {
     let envContent = fs.readFileSync(envPath, 'utf8');
     
     // Update webhook ID and token
-    envContent = envContent.replace(/WEBHOOK_ID=.+/, `WEBHOOK_ID=${webhookData.webhookId}`);
-    envContent = envContent.replace(/WEBHOOK_TOKEN=.+/, `WEBHOOK_TOKEN=${webhookData.webhookToken}`);
+    envContent = envContent.replace(/WEBHOOK_ID=.*/, `WEBHOOK_ID=${webhookData.webhookId}`);
+    envContent = envContent.replace(/WEBHOOK_TOKEN=.*/, `WEBHOOK_TOKEN=${webhookData.webhookToken}`);
     
     fs.writeFileSync(envPath, envContent);
     console.log(`   📝 Updated ${envPath}`);
@@ -205,10 +221,12 @@ cat .env.harriet | grep WEBHOOK
 
 // Main execution
 if (process.argv.length < 3) {
-  console.error('Usage: node create-webhooks.js <channel-id>');
+  console.error('Usage: node create-webhooks.js <channel-id> [bot-name]');
   console.error('Example: node create-webhooks.js 1417639609231347812');
+  console.error('Example: node create-webhooks.js 1417639609231347812 aiden');
   process.exit(1);
 }
 
 const channelId = process.argv[2];
-createWebhooks(channelId);
+const targetBot = process.argv[3]; // Optional bot name
+createWebhooks(channelId, targetBot);

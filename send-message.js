@@ -99,6 +99,7 @@ client.once('clientReady', async () => {
         .setFooter({ text: `acl:1 • Sent by a ZDS AI Agent • zds-agents.com` });
 
       await targetChannel.send({ embeds: [embed] });
+      console.log(`Message sent successfully`);
     } else {
       const chunks = splitMessage(message);
 
@@ -107,9 +108,7 @@ client.once('clientReady', async () => {
         const prefix = chunks.length > 1 ? `(${i + 1}/${chunks.length}) ` : '';
         await targetChannel.send(prefix + chunk);
       }
-    }
-    
-    if (agentName !== 'alex' || targetChannel.name !== 'bot-testing') {
+
       console.log(`Message sent successfully (${chunks.length} chunk${chunks.length > 1 ? 's' : ''})`);
     }
 
