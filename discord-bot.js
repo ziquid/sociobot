@@ -33,7 +33,7 @@ import { processBatchedMessages, processRealtimeMessage, log } from "./lib/qcli.
 import { startHttpServer } from "./lib/http-server.js";
 import { setupErrorHandlers } from "./lib/error-handlers.js";
 import { sendLongMessage } from "./lib/message-utils.js";
-import { getACL, MAX_ACL, addCourtesyMessage } from "./lib/metadata.js";
+import { getACL, getMaxACL, addCourtesyMessage } from "./lib/metadata.js";
 import {
   isOwnBotMessage,
   isAfterCutoff,
