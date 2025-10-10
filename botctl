@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 # Discord Bot Monitor and Auto-Restart Script
 # Monitors Discord bots and restarts them when needed
 
 # set -x
 
-BOTS=(brooke harriet tara binti) # alex devon
+BOTS=(brooke harriet tara binti devon tim vai pam aiden) # alex
 BOT_SCRIPT="discord-bot.js"
 
 BOT_DIR="/Users/joseph/Documents/Source/Managed/zds-ai-discord-bot"
@@ -77,8 +77,14 @@ stop_monitor() {
   fi
 }
 
+is_valid_bot() {
+  local BOT_NAME="$1"
+  [[ ${BOTS[(ie)$BOT_NAME]} -le ${#BOTS} ]]
+}
+
 start_single_bot() {
   declare -r BOT_NAME="$1"
+  local DEBUG_FLAG="$2"
 
   if is_bot_running "$BOT_NAME"; then
     log_message "✅ $BOT_NAME bot already running"
@@ -87,7 +93,12 @@ start_single_bot() {
 
   declare -r LOG_FILE="data/logs/${BOT_NAME}-bot.log"
 
-  nohup node "$BOT_SCRIPT" "$BOT_NAME" > "$LOG_FILE" 2>&1 &
+  if [[ "$DEBUG_FLAG" == "--debug" ]]; then
+    log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
+    nohup node "$BOT_SCRIPT" "$BOT_NAME" --debug > "$LOG_FILE" 2>&1 &
+  else
+    nohup node "$BOT_SCRIPT" "$BOT_NAME" > "$LOG_FILE" 2>&1 &
+  fi
 
   sleep 3
 
@@ -96,6 +107,33 @@ start_single_bot() {
     return 0
   else
     log_message "❌ Failed to start $BOT_NAME bot"
+    return 1
+  fi
+}
+
+stop_single_bot() {
+  declare -r BOT_NAME="$1"
+
+  if ! is_bot_running "$BOT_NAME"; then
+    log_message "✅ $BOT_NAME bot already stopped"
+    return 0
+  fi
+
+  log_message "🛑 Stopping $BOT_NAME bot..."
+  pkill -f "$BOT_SCRIPT $BOT_NAME" 2>/dev/null || true
+  sleep 2
+
+  if is_bot_running "$BOT_NAME"; then
+    log_message "⚠️  $BOT_NAME bot still running, force killing..."
+    pkill -9 -f "$BOT_SCRIPT $BOT_NAME" 2>/dev/null || true
+    sleep 1
+  fi
+
+  if ! is_bot_running "$BOT_NAME"; then
+    log_message "✅ $BOT_NAME bot stopped"
+    return 0
+  else
+    log_message "❌ Failed to stop $BOT_NAME bot"
     return 1
   fi
 }
@@ -240,15 +278,93 @@ die() {
 # Handle script arguments
 case "${1:-help}" in
   "start"|"run")
-    start_all_bots
+    if [[ -n "$2" ]]; then
+      # Parse arguments to separate --debug flag from bot names
+      local DEBUG_FLAG=""
+      local BOT_NAMES=()
+
+      shift  # Remove command name
+      for arg in "$@"; do
+        if [[ "$arg" == "--debug" ]]; then
+          DEBUG_FLAG="--debug"
+        else
+          BOT_NAMES+=("$arg")
+        fi
+      done
+
+      if [[ ${#BOT_NAMES[@]} -eq 0 ]]; then
+        echo "❌ Error: No bot names specified" >&2
+        echo "Valid bots: ${BOTS[*]}" >&2
+        exit 1
+      fi
+
+      # Start each bot
+      for BOT_NAME in "${BOT_NAMES[@]}"; do
+        if is_valid_bot "$BOT_NAME"; then
+          start_single_bot "$BOT_NAME" "$DEBUG_FLAG"
+        else
+          echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
+          echo "Valid bots: ${BOTS[*]}" >&2
+          exit 1
+        fi
+      done
+    else
+      start_all_bots
+    fi
     ;;
   "stop"|"kill")
-    stop_monitor
-    stop_all_bots
-    show_status
+    if [[ -n "$2" ]]; then
+      shift  # Remove command name
+      for BOT_NAME in "$@"; do
+        if is_valid_bot "$BOT_NAME"; then
+          stop_single_bot "$BOT_NAME"
+        else
+          echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
+          echo "Valid bots: ${BOTS[*]}" >&2
+          exit 1
+        fi
+      done
+    else
+      stop_monitor
+      stop_all_bots
+      show_status
+    fi
     ;;
   "restart")
-    restart_all_bots
+    if [[ -n "$2" ]]; then
+      # Parse arguments to separate --debug flag from bot names
+      local DEBUG_FLAG=""
+      local BOT_NAMES=()
+
+      shift  # Remove command name
+      for arg in "$@"; do
+        if [[ "$arg" == "--debug" ]]; then
+          DEBUG_FLAG="--debug"
+        else
+          BOT_NAMES+=("$arg")
+        fi
+      done
+
+      if [[ ${#BOT_NAMES[@]} -eq 0 ]]; then
+        echo "❌ Error: No bot names specified" >&2
+        echo "Valid bots: ${BOTS[*]}" >&2
+        exit 1
+      fi
+
+      # Restart each bot
+      for BOT_NAME in "${BOT_NAMES[@]}"; do
+        if is_valid_bot "$BOT_NAME"; then
+          stop_single_bot "$BOT_NAME"
+          start_single_bot "$BOT_NAME" "$DEBUG_FLAG"
+        else
+          echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
+          echo "Valid bots: ${BOTS[*]}" >&2
+          exit 1
+        fi
+      done
+    else
+      restart_all_bots
+    fi
     ;;
   "status"|"st")
     show_status
@@ -267,18 +383,32 @@ case "${1:-help}" in
     start_monitor "$2"
     ;;
   *)
-    HELP_WIDTH=28
-    echo "Usage: $0 [start|stop|restart|status|logs|monitor|restart-monitor]"
+    HELP_WIDTH=42
+    echo "Usage: $0 <command> [--debug] [bot_name...]"
+    echo
     echo "These commands run once and exit:"
-    printf "  %-${HELP_WIDTH}s - %s\n" "start (run)" "Start all dead bots"
-    printf "  %-${HELP_WIDTH}s - %s\n" "stop (kill)" "Stop monitor and all bots"
-    printf "  %-${HELP_WIDTH}s - %s\n" "restart" "Restart all bots (kills existing)"
+    printf "  %-${HELP_WIDTH}s - %s\n" "start (run) [--debug] [bot_name...]" "Start all bots or specific bot(s)"
+    printf "  %-${HELP_WIDTH}s - %s\n" "stop (kill) [bot_name...]" "Stop monitor and all bots, or specific bot(s)"
+    printf "  %-${HELP_WIDTH}s - %s\n" "restart [--debug] [bot_name...]" "Restart all bots or specific bot(s)"
     printf "  %-${HELP_WIDTH}s - %s\n" "status (st)" "Show bot and monitor status"
     printf "  %-${HELP_WIDTH}s - %s\n" "logs (log)" "Show monitor logs from system log"
     printf "  %-${HELP_WIDTH}s - %s\n" "help" "Show this help message"
+    echo
     echo "These commands run continuously until interrupted:"
     printf "  %-${HELP_WIDTH}s - %s\n" "monitor (mon) [-fg]" "Monitor bots (background by default, -fg for foreground)"
     printf "  %-${HELP_WIDTH}s - %s\n" "restart-monitor (rmon) [-fg]" "Stop monitor, restart bots, start new monitor"
+    echo
+    echo "Options:"
+    printf "  %-${HELP_WIDTH}s - %s\n" "--debug" "Enable verbose debug logging (applies to all bots)"
+    echo
+    echo "Valid bot names: ${BOTS[*]}"
+    echo
+    echo "Examples:"
+    echo "  $0 start <bot>                 # Start single bot"
+    echo "  $0 start <bot1> <bot2>         # Start multiple bots"
+    echo "  $0 start --debug <bot1> <bot2> # Start multiple bots with debug logging"
+    echo "  $0 stop <bot1> <bot2>          # Stop multiple bots"
+    echo "  $0 restart --debug <bot>       # Restart bot with debug logging"
     exit 1
     ;;
 esac
