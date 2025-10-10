@@ -40,9 +40,7 @@ node create-webhooks.js <channel-id>
 ### To Verify Webhook Configuration:
 ```bash
 # Check each bot's .env file
-cat .env.alex | grep WEBHOOK
-cat .env.brooke | grep WEBHOOK  
-cat .env.harriet | grep WEBHOOK
+cat .env.<bot-name> | grep WEBHOOK
 ```
 
 ## Security Notes

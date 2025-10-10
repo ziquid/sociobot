@@ -189,7 +189,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
         }
 
         try {
-          await sendLongMessage(message, response.response);
+          await sendLongMessage(message, response.response, DEBUG);
           log(`Discord delivery SUCCESS for message ${response.messageId}`);
           if (!highestProcessedId || message.id > highestProcessedId) {
             highestProcessedId = message.id;
@@ -361,7 +361,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
             }
 
             try {
-              await sendLongMessage(message, response.response);
+              await sendLongMessage(message, response.response, DEBUG);
               log(`Bot-dms Discord delivery SUCCESS for message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
                 highestProcessedId = message.id;
@@ -702,7 +702,7 @@ async function handleRealtimeMessage(message) {
       query = query.trim();
     }
 
-    if (query) {
+    if (query || message.attachments.size > 0) {
       if (NO_AGENT) {
         log(`Real-time message skipped - agent processing disabled (--no-agent)`);
         return;
@@ -716,7 +716,7 @@ async function handleRealtimeMessage(message) {
         } else {
           circuitBreakerState.consecutiveFailures = 0; // Reset on successful response
           try {
-            await sendLongMessage(message, response);
+            await sendLongMessage(message, response, DEBUG);
             log(`Real-time Discord delivery SUCCESS for message ${message.id}`);
             // Save persistence immediately after successful delivery
             saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);

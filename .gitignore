@@ -14,6 +14,9 @@ temp_*
 # Last processed message files
 last_processed_messages_*.json
 
+# Server configuration files
+data/servers/*.json
+
 # IDE/AI assistant directories
 .amazonq/
 .grok/

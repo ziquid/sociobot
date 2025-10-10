@@ -33,8 +33,12 @@ const BOTS = [
   { name: 'aiden', displayName: 'Aiden (AI)' },
   { name: 'alex', displayName: 'Alex Chen (AI)' },
   { name: 'brooke', displayName: 'Brooke (AI)' },
+  { name: 'devon', displayName: 'Devon (AI)' },
   { name: 'harriet', displayName: 'Harriet (AI)' },
+  { name: 'pam', displayName: 'Pam (AI)' },
   { name: 'tara', displayName: 'Tara (AI)' },
+  { name: 'tim', displayName: 'Tim (AI)' },
+  { name: 'vai', displayName: 'Vai (AI)' },
   { name: 'binti', displayName: 'Binti (AI)' }
 ];
 
