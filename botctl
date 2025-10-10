@@ -46,9 +46,22 @@ get_load_int() {
   get_load_avg | cut -d . -f 1
 }
 
+get_bot_status() {
+  declare -r BOT_NAME="$1"
+
+  if pgrep -f "$BOT_SCRIPT $BOT_NAME --debug" > /dev/null; then
+    echo "debug"
+  elif pgrep -f "$BOT_SCRIPT $BOT_NAME" > /dev/null; then
+    echo "running"
+  else
+    echo "stopped"
+  fi
+}
+
 is_bot_running() {
   declare -r BOT_NAME="$1"
-  pgrep -f "$BOT_SCRIPT $BOT_NAME" > /dev/null
+  local STATUS=$(get_bot_status "$BOT_NAME")
+  [[ "$STATUS" != "stopped" ]]
 }
 
 is_monitor_running() {
@@ -217,11 +230,18 @@ show_status() {
   echo
 
   for BOT in "${BOTS[@]}"; do
-    if is_bot_running "$BOT"; then
-      echo "✅ $BOT bot: RUNNING"
-    else
-      echo "❌ $BOT bot: STOPPED"
-    fi
+    local STATUS=$(get_bot_status "$BOT")
+    case "$STATUS" in
+      "debug")
+        echo "🐛 $BOT bot: RUNNING (DEBUG MODE)"
+        ;;
+      "running")
+        echo "✅ $BOT bot: RUNNING"
+        ;;
+      "stopped")
+        echo "❌ $BOT bot: STOPPED"
+        ;;
+    esac
   done
 }
 
@@ -370,7 +390,7 @@ case "${1:-help}" in
     show_status
     ;;
   "logs"|"log")
-    log show --predicate 'process == "logger" AND eventMessage CONTAINS "discord-bot:"' \
+    /usr/bin/log show --predicate 'process == "logger" AND eventMessage CONTAINS "discord-bot:"' \
         --info --debug --last 1h --style compact \
       | sed 's/ logger\[[^]]*\] discord-bot: //'
     ;;
