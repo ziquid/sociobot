@@ -391,7 +391,7 @@ case "${1:-help}" in
     ;;
   "logs"|"log")
     /usr/bin/log show --predicate 'process == "logger" AND eventMessage CONTAINS "discord-bot:"' \
-        --info --debug --last 1h --style compact \
+        --info --debug --last 8h --style compact \
       | sed 's/ logger\[[^]]*\] discord-bot: //'
     ;;
   "monitor"|"mon")
