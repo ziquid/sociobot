@@ -29,7 +29,7 @@ if (!validEnvironment()) {
 import { Client, Events, GatewayIntentBits, ChannelType, Partials } from "discord.js";
 
 import { loadLastProcessedMessages, saveLastProcessedMessage } from "./lib/persistence.js";
-import { processBatchedMessages, processRealtimeMessage, log } from "./lib/qcli.js";
+import { processBatchedMessages, processRealtimeMessage, log, encodeSpeech } from "./lib/qcli.js";
 import { startHttpServer } from "./lib/http-server.js";
 import { setupErrorHandlers } from "./lib/error-handlers.js";
 import { sendLongMessage } from "./lib/message-utils.js";
@@ -708,23 +708,40 @@ async function handleRealtimeMessage(message) {
         return;
       }
 
-      const response = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD);
+      const result = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD);
 
-      if (response && !NO_DISCORD) {
-        if (isErrorResponse(response)) {
+      if (result && !NO_DISCORD) {
+        const responseText = typeof result === 'string' ? result : result.response;
+        const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
+
+        if (isErrorResponse(responseText)) {
           handleErrorResponse('realtime processing', circuitBreakerState, MAX_FAILURES, log);
         } else {
           circuitBreakerState.consecutiveFailures = 0; // Reset on successful response
           try {
-            await sendLongMessage(message, response, DEBUG);
-            log(`Real-time Discord delivery SUCCESS for message ${message.id}`);
+            // Encode speech if message had transcription
+            let audioPath = null;
+            if (hadTranscription) {
+              if (DEBUG) {
+                log(`Message had transcription, encoding speech response for ${AGENT_NAME}`);
+              }
+              audioPath = encodeSpeech(responseText, AGENT_NAME);
+              if (audioPath && DEBUG) {
+                log(`Speech encoded successfully: ${audioPath}`);
+              } else if (!audioPath) {
+                log(`Speech encoding failed, sending text-only response`);
+              }
+            }
+
+            await sendLongMessage(message, responseText, DEBUG, audioPath);
+            log(`Real-time Discord delivery SUCCESS for message ${message.id}${audioPath ? ' with audio' : ''}`);
             // Save persistence immediately after successful delivery
             saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
           } catch (error) {
             log(`Real-time Discord delivery FAILED for message ${message.id}: ${error.message}`);
           }
         }
-      } else if (response && NO_DISCORD) {
+      } else if (result && NO_DISCORD) {
         log(`Real-time response generated - Discord response skipped`);
       }
     }

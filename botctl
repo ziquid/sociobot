@@ -7,7 +7,7 @@
 BOTS=(brooke harriet tara binti devon tim vai pam aiden) # alex
 BOT_SCRIPT="discord-bot.js"
 
-BOT_DIR="/Users/joseph/Documents/Source/Managed/zds-ai-discord-bot"
+BOT_DIR=~/sca/sociobot
 PIDFILE="/tmp/botctl.pid"
 MAX_LOAD_THRESHOLD=15
 EMERGENCY_LOAD_THRESHOLD=30
