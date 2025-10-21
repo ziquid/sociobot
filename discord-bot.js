@@ -183,6 +183,16 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
     for (const response of responses) {
       const message = messageMap.get(response.messageId);
       if (message && response.response) {
+        // Check for NO_RESPONSE directive
+        if (response.response === 'NO_RESPONSE') {
+          log(`Agent returned NO_RESPONSE - skipping Discord reply for message ${response.messageId}`);
+          if (!highestProcessedId || message.id > highestProcessedId) {
+            highestProcessedId = message.id;
+          }
+          saveLastProcessedMessage(AGENT_NAME, channel.id, message.id);
+          continue;
+        }
+
         if (isErrorResponse(response.response)) {
           handleErrorResponse(`batch processing message ${response.messageId}`, circuitBreakerState, MAX_FAILURES, log);
           continue;
@@ -355,6 +365,16 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
         for (const response of responses) {
           const message = messageMap.get(response.messageId);
           if (message && response.response) {
+            // Check for NO_RESPONSE directive
+            if (response.response === 'NO_RESPONSE') {
+              log(`Agent returned NO_RESPONSE - skipping Discord reply for bot-dms message ${response.messageId}`);
+              if (!highestProcessedId || message.id > highestProcessedId) {
+                highestProcessedId = message.id;
+              }
+              saveLastProcessedMessage(AGENT_NAME, BOT_DMS_CHANNEL_ID, message.id);
+              continue;
+            }
+
             if (isErrorResponse(response.response)) {
               handleErrorResponse(`bot-dms processing message ${response.messageId}`, circuitBreakerState, MAX_FAILURES, log);
               continue;
@@ -713,6 +733,13 @@ async function handleRealtimeMessage(message) {
       if (result && !NO_DISCORD) {
         const responseText = typeof result === 'string' ? result : result.response;
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
+
+        // Check for NO_RESPONSE directive
+        if (responseText === 'NO_RESPONSE') {
+          log(`Agent returned NO_RESPONSE - skipping Discord reply for message ${message.id}`);
+          saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
+          return;
+        }
 
         if (isErrorResponse(responseText)) {
           handleErrorResponse('realtime processing', circuitBreakerState, MAX_FAILURES, log);
