@@ -106,11 +106,15 @@ start_single_bot() {
 
   declare -r LOG_FILE="data/logs/${BOT_NAME}-bot.log"
 
+  # Start with clean environment to prevent ZDS_AI_AGENT_* variable leakage
+  # Only pass through essential system variables
   if [[ "$DEBUG_FLAG" == "--debug" ]]; then
     log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
-    nohup node "$BOT_SCRIPT" "$BOT_NAME" --debug > "$LOG_FILE" 2>&1 &
+    env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
+      nohup node "$BOT_SCRIPT" "$BOT_NAME" --debug > "$LOG_FILE" 2>&1 &
   else
-    nohup node "$BOT_SCRIPT" "$BOT_NAME" > "$LOG_FILE" 2>&1 &
+    env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
+      nohup node "$BOT_SCRIPT" "$BOT_NAME" > "$LOG_FILE" 2>&1 &
   fi
 
   sleep 3

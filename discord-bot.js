@@ -32,7 +32,7 @@ import { loadLastProcessedMessages, saveLastProcessedMessage } from "./lib/persi
 import { processBatchedMessages, processRealtimeMessage, log, encodeSpeech } from "./lib/qcli.js";
 import { startHttpServer } from "./lib/http-server.js";
 import { setupErrorHandlers } from "./lib/error-handlers.js";
-import { sendLongMessage } from "./lib/message-utils.js";
+import { sendLongMessage, stripThinkTags } from "./lib/message-utils.js";
 import { getACL, getMaxACL, addCourtesyMessage } from "./lib/metadata.js";
 import {
   isOwnBotMessage,
@@ -183,8 +183,10 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
     for (const response of responses) {
       const message = messageMap.get(response.messageId);
       if (message && response.response) {
+        const responseText = stripThinkTags(response.response).trim();
+
         // Check for NO_RESPONSE directive
-        if (response.response === 'NO_RESPONSE') {
+        if (responseText === 'NO_RESPONSE') {
           log(`Agent returned NO_RESPONSE - skipping Discord reply for message ${response.messageId}`);
           if (!highestProcessedId || message.id > highestProcessedId) {
             highestProcessedId = message.id;
@@ -193,13 +195,30 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
           continue;
         }
 
-        if (isErrorResponse(response.response)) {
+        // Check for REACTION directive (e.g., REACTION:thumbsup:)
+        if (responseText.startsWith('REACTION:')) {
+          const emoji = responseText.substring('REACTION:'.length);
+          log(`Agent returned REACTION directive - reacting to message ${response.messageId} with ${emoji}`);
+          try {
+            await message.react(emoji);
+            log(`Reaction SUCCESS for message ${response.messageId}: ${emoji}`);
+          } catch (error) {
+            log(`Reaction FAILED for message ${response.messageId} with ${emoji}: ${error.message}`);
+          }
+          if (!highestProcessedId || message.id > highestProcessedId) {
+            highestProcessedId = message.id;
+          }
+          saveLastProcessedMessage(AGENT_NAME, channel.id, message.id);
+          continue;
+        }
+
+        if (isErrorResponse(responseText)) {
           handleErrorResponse(`batch processing message ${response.messageId}`, circuitBreakerState, MAX_FAILURES, log);
           continue;
         }
 
         try {
-          await sendLongMessage(message, response.response, DEBUG);
+          await sendLongMessage(message, responseText, DEBUG);
           log(`Discord delivery SUCCESS for message ${response.messageId}`);
           if (!highestProcessedId || message.id > highestProcessedId) {
             highestProcessedId = message.id;
@@ -365,8 +384,10 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
         for (const response of responses) {
           const message = messageMap.get(response.messageId);
           if (message && response.response) {
+            const responseText = stripThinkTags(response.response).trim();
+
             // Check for NO_RESPONSE directive
-            if (response.response === 'NO_RESPONSE') {
+            if (responseText === 'NO_RESPONSE') {
               log(`Agent returned NO_RESPONSE - skipping Discord reply for bot-dms message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
                 highestProcessedId = message.id;
@@ -375,13 +396,30 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
               continue;
             }
 
-            if (isErrorResponse(response.response)) {
+            // Check for REACTION directive (e.g., REACTION:thumbsup:)
+            if (responseText.startsWith('REACTION:')) {
+              const emoji = responseText.substring('REACTION:'.length);
+              log(`Agent returned REACTION directive - reacting to bot-dms message ${response.messageId} with ${emoji}`);
+              try {
+                await message.react(emoji);
+                log(`Reaction SUCCESS for bot-dms message ${response.messageId}: ${emoji}`);
+              } catch (error) {
+                log(`Reaction FAILED for bot-dms message ${response.messageId} with ${emoji}: ${error.message}`);
+              }
+              if (!highestProcessedId || message.id > highestProcessedId) {
+                highestProcessedId = message.id;
+              }
+              saveLastProcessedMessage(AGENT_NAME, BOT_DMS_CHANNEL_ID, message.id);
+              continue;
+            }
+
+            if (isErrorResponse(responseText)) {
               handleErrorResponse(`bot-dms processing message ${response.messageId}`, circuitBreakerState, MAX_FAILURES, log);
               continue;
             }
 
             try {
-              await sendLongMessage(message, response.response, DEBUG);
+              await sendLongMessage(message, responseText, DEBUG);
               log(`Bot-dms Discord delivery SUCCESS for message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
                 highestProcessedId = message.id;
@@ -731,12 +769,26 @@ async function handleRealtimeMessage(message) {
       const result = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD);
 
       if (result && !NO_DISCORD) {
-        const responseText = typeof result === 'string' ? result : result.response;
+        const responseText = stripThinkTags(typeof result === 'string' ? result : result.response).trim();
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
 
         // Check for NO_RESPONSE directive
         if (responseText === 'NO_RESPONSE') {
           log(`Agent returned NO_RESPONSE - skipping Discord reply for message ${message.id}`);
+          saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
+          return;
+        }
+
+        // Check for REACTION directive (e.g., REACTION:thumbsup:)
+        if (responseText.startsWith('REACTION:')) {
+          const emoji = responseText.substring('REACTION:'.length);
+          log(`Agent returned REACTION directive - reacting to message ${message.id} with ${emoji}`);
+          try {
+            await message.react(emoji);
+            log(`Reaction SUCCESS for message ${message.id}: ${emoji}`);
+          } catch (error) {
+            log(`Reaction FAILED for message ${message.id} with ${emoji}: ${error.message}`);
+          }
           saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
           return;
         }
