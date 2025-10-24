@@ -79,6 +79,40 @@ let consecutiveFailures = 0;
 let startupComplete = false;
 const messageQueue = [];
 
+// Common emoji name to Unicode mapping
+const EMOJI_MAP = {
+  'thumbsup': '👍',
+  'thumbsdown': '👎',
+  'heart': '❤️',
+  '100': '💯',
+  'fire': '🔥',
+  'eyes': '👀',
+  'thinking': '🤔',
+  'tada': '🎉',
+  'rocket': '🚀',
+  'star': '⭐',
+  'check': '✅',
+  'x': '❌',
+  'wave': '👋',
+  'clap': '👏',
+  'pray': '🙏',
+  'muscle': '💪',
+  'brain': '🧠',
+  'bulb': '💡',
+  'warning': '⚠️',
+  'question': '❓',
+  'exclamation': '❗',
+  'laughing': '😂',
+  'smile': '😊',
+  'grin': '😁',
+  'joy': '😂',
+  'rofl': '🤣',
+  'sunglasses': '😎',
+  'sob': '😭',
+  'scream': '😱',
+  'shrug': '🤷'
+};
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -86,11 +120,14 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.GuildWebhooks
+    GatewayIntentBits.GuildWebhooks,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.DirectMessageReactions
   ],
   partials: [
     Partials.Channel,
     Partials.Message,
+    Partials.Reaction
   ],
 });
 
@@ -197,7 +234,11 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
 
         // Check for REACTION directive (e.g., REACTION:thumbsup:)
         if (responseText.startsWith('REACTION:')) {
-          const emoji = responseText.substring('REACTION:'.length);
+          let emoji = responseText.substring('REACTION:'.length);
+          // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
+          emoji = emoji.replace(/^:|:$/g, '');
+          // Map common emoji names to Unicode
+          emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
           log(`Agent returned REACTION directive - reacting to message ${response.messageId} with ${emoji}`);
           try {
             await message.react(emoji);
@@ -398,7 +439,11 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
 
             // Check for REACTION directive (e.g., REACTION:thumbsup:)
             if (responseText.startsWith('REACTION:')) {
-              const emoji = responseText.substring('REACTION:'.length);
+              let emoji = responseText.substring('REACTION:'.length);
+              // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
+              emoji = emoji.replace(/^:|:$/g, '');
+              // Map common emoji names to Unicode
+              emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
               log(`Agent returned REACTION directive - reacting to bot-dms message ${response.messageId} with ${emoji}`);
               try {
                 await message.react(emoji);
@@ -781,7 +826,11 @@ async function handleRealtimeMessage(message) {
 
         // Check for REACTION directive (e.g., REACTION:thumbsup:)
         if (responseText.startsWith('REACTION:')) {
-          const emoji = responseText.substring('REACTION:'.length);
+          let emoji = responseText.substring('REACTION:'.length);
+          // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
+          emoji = emoji.replace(/^:|:$/g, '');
+          // Map common emoji names to Unicode
+          emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
           log(`Agent returned REACTION directive - reacting to message ${message.id} with ${emoji}`);
           try {
             await message.react(emoji);
@@ -937,6 +986,61 @@ client.on('messageCreate', async (message) => {
     handleLowPriorityMessage(message);
   } else {
     await handleRealtimeMessage(message);
+  }
+});
+
+// Handle reaction events
+client.on('messageReactionAdd', async (reaction, user) => {
+  try {
+    // Fetch partial reactions/messages if needed
+    if (reaction.partial) {
+      await reaction.fetch();
+    }
+    if (reaction.message.partial) {
+      await reaction.message.fetch();
+    }
+
+    const message = reaction.message;
+
+    // Get emoji identifier (custom emoji use name, unicode emoji use emoji property)
+    const emojiIdentifier = reaction.emoji.id ? `:${reaction.emoji.name}:` : reaction.emoji.name;
+
+    // Truncate message content for notification
+    const messagePreview = message.content.substring(0, 500);
+    const truncated = message.content.length > 500 ? '...' : '';
+
+    const channelName = message.channel.name || `DM with ${message.channel.recipient?.username}`;
+    const messageAuthor = message.author.username;
+
+    log(`Reaction notification: ${user.username} reacted with ${emojiIdentifier} to ${messageAuthor}'s message in ${channelName}`);
+
+    // Send informational notification to the agent (matching format of regular messages)
+    const notification = `Reaction added by @${user.username} (ID: ${user.id}) in channel ${channelName} (ID: ${message.channel.id}):
+
+Reacted with ${emojiIdentifier} to message from @${messageAuthor} (ID: ${message.author.id}, Message ID: ${message.id}):
+"${messagePreview}${truncated}"
+
+This message is for your information only. Do not reply -- replies to this message will not be processed.`;
+
+    // Process as informational message (no response expected)
+    await processRealtimeMessage(
+      {
+        content: notification,
+        author: { username: 'Discord System', id: 'system' },
+        id: `reaction-${message.id}-${user.id}-${Date.now()}`,
+        channel: message.channel,
+        createdAt: new Date(),
+        client: client,
+        attachments: new Map()
+      },
+      message.channel,
+      AGENT_NAME,
+      DEBUG,
+      true // noDiscord = true, don't send response back to Discord
+    );
+
+  } catch (error) {
+    log(`Error handling reaction: ${error.message}`);
   }
 });
 
