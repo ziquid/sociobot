@@ -110,6 +110,7 @@ const EMOJI_MAP = {
   'sunglasses': '😎',
   'sob': '😭',
   'scream': '😱',
+  'flushed': '😳',
   'shrug': '🤷'
 };
 
