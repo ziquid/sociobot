@@ -1,0 +1,7 @@
+#!/usr/bin/env mzke -f
+
+include mk/base.inc.mk
+
+MZKE_INCLUDES := defaults -../$(CURDIR_NAME) all env features help
+$(call F_INCLUDE_FILES,$(MZKE_INCLUDES))
+
