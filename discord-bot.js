@@ -993,6 +993,12 @@ client.on('messageCreate', async (message) => {
 // Handle reaction events
 client.on('messageReactionAdd', async (reaction, user) => {
   try {
+    // Skip if the reactor is this bot
+    if (user.id === client.user.id) {
+      if (DEBUG) log(`Skipping self-reaction notification`);
+      return;
+    }
+
     // Fetch partial reactions/messages if needed
     if (reaction.partial) {
       await reaction.fetch();
