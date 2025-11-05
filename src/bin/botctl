@@ -393,6 +393,17 @@ case "${1:-help}" in
   "status"|"st")
     show_status
     ;;
+  "tail")
+    # tail is an alias for logs -f (follow mode)
+    if [[ -n "$2" ]]; then
+      set -- "logs" "$2" "-f"
+    else
+      echo "❌ Error: tail command requires a bot name" >&2
+      echo "Usage: $0 tail <bot_name>" >&2
+      echo "Valid bots: ${BOTS[*]}" >&2
+      exit 1
+    fi
+    ;& # fall through to logs case
   "logs"|"log")
     if [[ -n "$2" ]]; then
       # Parse arguments: detect bot-name and -f flag
@@ -438,6 +449,7 @@ case "${1:-help}" in
     printf "  %-${HELP_WIDTH}s - %s\n" "status (st)" "Show bot and monitor status"
     printf "  %-${HELP_WIDTH}s - %s\n" "logs (log) [<bot-name> [-f]]" "Show logs (system or bot-name's log)"
     printf "  %-${HELP_WIDTH}s   %s\n" "" "[-f] follow bot log until interrupted"
+    printf "  %-${HELP_WIDTH}s - %s\n" "tail <bot-name>" "Follow bot-name's log (alias for logs -f)"
     printf "  %-${HELP_WIDTH}s - %s\n" "help" "Show this help message"
     echo
     echo "These commands run continuously until interrupted:"
