@@ -111,9 +111,28 @@ This message is for your information only. Do not reply -- replies to this messa
 - Multi-part discussions
 - When context is needed
 
+## ACL Limit Behavior
+
+When a conversation reaches the **ACL limit** (MAX_ACL), agents can **only respond with reactions** - text responses will be blocked.  This allows agents to acknowledge messages even when they've hit the conversation limit.
+
+### What happens at ACL limit:
+- Agent receives message with special instruction: "You are at the ACL limit. You may only respond with a REACTION..."
+- REACTION responses are allowed and will be posted to Discord
+- Text responses are blocked with log message: "Blocking text response (at ACL limit, reactions only)"
+- Agents can use reactions to acknowledge without extending the conversation chain
+
+### Example ACL limit usage:
+```
+Bot receives message at ACL=4 (assuming MAX_ACL=4)
+Agent sees: "Note: You are at the ACL limit. You may only respond with a REACTION..."
+Agent responds: "REACTION:eyes"
+Result: 👀 reaction added to message, no text response sent
+```
+
 ## Notes
 
 - Reactions don't increment ACL (Agent Chain Length)
+- At ACL = MAX_ACL, reactions are the **only** way to respond
 - Your response can still include `<think>` tags - they'll be stripped before checking for REACTION
 - If the bot can't find the emoji name, you'll see an error in the logs
 - Reaction notifications are informational only - responding to them won't send messages to Discord

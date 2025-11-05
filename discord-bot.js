@@ -222,6 +222,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
       const message = messageMap.get(response.messageId);
       if (message && response.response) {
         const responseText = stripThinkTags(response.response).trim();
+        const aclLimited = response.aclLimited || false;
 
         // Check for NO_RESPONSE directive
         if (responseText === 'NO_RESPONSE') {
@@ -247,6 +248,16 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
           } catch (error) {
             log(`Reaction FAILED for message ${response.messageId} with ${emoji}: ${error.message}`);
           }
+          if (!highestProcessedId || message.id > highestProcessedId) {
+            highestProcessedId = message.id;
+          }
+          saveLastProcessedMessage(AGENT_NAME, channel.id, message.id);
+          continue;
+        }
+
+        // If ACL limited and not a REACTION, block the text response
+        if (aclLimited) {
+          log(`Blocking text response to message ${response.messageId} (at ACL limit, reactions only)`);
           if (!highestProcessedId || message.id > highestProcessedId) {
             highestProcessedId = message.id;
           }
@@ -817,6 +828,7 @@ async function handleRealtimeMessage(message) {
       if (result && !NO_DISCORD) {
         const responseText = stripThinkTags(typeof result === 'string' ? result : result.response).trim();
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
+        const aclLimited = typeof result === 'object' ? result.aclLimited : false;
 
         // Check for NO_RESPONSE directive
         if (responseText === 'NO_RESPONSE') {
@@ -839,6 +851,13 @@ async function handleRealtimeMessage(message) {
           } catch (error) {
             log(`Reaction FAILED for message ${message.id} with ${emoji}: ${error.message}`);
           }
+          saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
+          return;
+        }
+
+        // If ACL limited and not a REACTION, block the text response
+        if (aclLimited) {
+          log(`Blocking text response to message ${message.id} (at ACL limit, reactions only)`);
           saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
           return;
         }
