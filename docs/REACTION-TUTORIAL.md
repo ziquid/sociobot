@@ -36,6 +36,7 @@ REACTION:100:
 | 👍 | thumbsup | `REACTION:thumbsup` |
 | 👎 | thumbsdown | `REACTION:thumbsdown` |
 | ❤️ | heart | `REACTION:heart` |
+| 😍 | heart_eyes | `REACTION:heart_eyes` |
 | 💯 | 100 | `REACTION:100` |
 | 🔥 | fire | `REACTION:fire` |
 | 👀 | eyes | `REACTION:eyes` |

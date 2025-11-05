@@ -84,6 +84,7 @@ const EMOJI_MAP = {
   'thumbsup': '👍',
   'thumbsdown': '👎',
   'heart': '❤️',
+  'heart_eyes': '😍',
   '100': '💯',
   'fire': '🔥',
   'eyes': '👀',
