@@ -13,7 +13,7 @@ MAX_LOAD_THRESHOLD=15
 EMERGENCY_LOAD_THRESHOLD=30
 HIGH_LOAD_COUNT=0
 MAX_HIGH_LOAD_COUNT=5
-MONITORING=false
+MONITORING=true
 
 # Log command invocation
 logger -p user.info "discord-bot: Command invoked: $0 $*"
@@ -284,7 +284,7 @@ monitor_loop() {
 
 start_monitor() {
   if [[ "$1" != "--foreground" && "$1" != "-fg" ]]; then
-    nohup "$0" monitor --foreground > /dev/null 2>&1 &
+    nohup botctl monitor --foreground > /dev/null 2>&1 &
     echo "🔍 Monitor started in background (PID $!)"
     exit 0
   fi
