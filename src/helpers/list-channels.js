@@ -7,7 +7,7 @@
 
 import dotenv from 'dotenv';
 import { Client, Events, GatewayIntentBits, ChannelType } from "discord.js";
-import { loadLastProcessedMessages } from "./lib/persistence.js";
+import { loadLastProcessedMessages } from "../lib/persistence.js";
 
 const agentName = process.argv[2];
 const DISCOVER_DMS = process.argv.includes('--discover-dms');
@@ -15,9 +15,9 @@ const DEBUG = process.argv.includes('--debug');
 
 if (!agentName) {
   console.error('Usage: node list-channels.js <agent-name> [--discover-dms] [--debug]');
-  console.error('Example: node list-channels.js alex');
-  console.error('         node list-channels.js alex --discover-dms');
-  console.error('         node list-channels.js alex --debug');
+  console.error('Example: node list-channels.js test-agent');
+  console.error('         node list-channels.js test-agent --discover-dms');
+  console.error('         node list-channels.js test-agent --debug');
   process.exit(1);
 }
 

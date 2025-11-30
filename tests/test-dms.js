@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.devon' });
+dotenv.config({ path: '.env.test-agent' });
 
 import { Client, Events, GatewayIntentBits, ChannelType, Partials } from "discord.js";
 

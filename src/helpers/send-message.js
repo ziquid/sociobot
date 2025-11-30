@@ -2,7 +2,7 @@
 
 import { Client, GatewayIntentBits } from 'discord.js';
 import dotenv from 'dotenv';
-import { sendChannelMessage, sendWebhookMessage } from './lib/message-utils.js';
+import { sendChannelMessage, sendWebhookMessage } from '../lib/message-utils.js';
 
 // Usage: node send-message.js <agent-name> <channel-id-or-name> "message text"
 // Usage: node send-message.js <agent-name> dm <user-id> "message text"
@@ -18,10 +18,10 @@ if (!agentName || !target) {
   console.error('   OR: node send-message.js <agent-name> dm <user-id> "message"');
   console.error('   OR: node send-message.js <agent-name> webhook <channel-id-or-name> "message"');
   console.error('Examples:');
-  console.error('  node send-message.js alex 1234567890 "Hello channel!"');
-  console.error('  node send-message.js alex bot-testing "Hello channel!"');
-  console.error('  node send-message.js brooke dm 9876543210 "Hello user!"');
-  console.error('  node send-message.js alex webhook bot-testing "Hello via webhook!"');
+  console.error('  node send-message.js test-agent 1234567890 "Hello channel!"');
+  console.error('  node send-message.js test-agent bot-testing "Hello channel!"');
+  console.error('  node send-message.js test-agent dm 9876543210 "Hello user!"');
+  console.error('  node send-message.js test-agent webhook bot-testing "Hello via webhook!"');
   process.exit(1);
 }
 

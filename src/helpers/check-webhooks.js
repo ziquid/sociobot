@@ -13,9 +13,9 @@ async function checkWebhooks(channelId) {
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
   
   try {
-    // Load Alex's token
-    const alexEnv = fs.readFileSync('.env.alex', 'utf8');
-    const tokenMatch = alexEnv.match(/DISCORD_TOKEN=(.+)/);
+    // Load admin bot's token
+    const adminEnv = fs.readFileSync('.env.admin-agent', 'utf8');
+    const tokenMatch = adminEnv.match(/DISCORD_TOKEN=(.+)/);
     
     await client.login(tokenMatch[1]);
     console.log('✅ Connected to Discord');

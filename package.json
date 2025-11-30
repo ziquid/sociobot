@@ -2,12 +2,37 @@
   "name": "sociobot",
   "version": "0.0.1",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
-  "main": "sociobot.js",
+  "main": "src/sociobot.js",
   "type": "module",
-  "scripts": {
-    "start": "node sociobot.js",
-    "dev": "node --watch sociobot.js"
+  "bin": {
+    "botctl": "src/bin/botctl"
   },
+  "scripts": {
+    "start": "node src/sociobot.js",
+    "dev": "node --watch src/sociobot.js",
+    "test": "bash tests/test-bot.sh"
+  },
+  "files": [
+    "src/",
+    "docs/",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "discord",
+    "bot",
+    "multi-agent",
+    "ai",
+    "chatbot"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ziquid/sociobot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ziquid/sociobot/issues"
+  },
+  "homepage": "https://github.com/ziquid/sociobot#readme",
   "author": "ZDS AI Team",
   "license": "MIT",
   "dependencies": {

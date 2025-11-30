@@ -10,7 +10,7 @@
  * 3. Response marking logic is correct
  */
 
-import { getACL, getMaxACL } from '../lib/metadata.js';
+import { getACL, getMaxACL } from '../src/lib/metadata.js';
 
 console.log('=== ACL Limit Smoke Test ===\n');
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BOTNAME=sociobot.js
+BOTNAME=src/sociobot.js
 
 echo "=== Testing Sociobot ==="
 
@@ -13,7 +13,7 @@ fi
 echo "✅ Main file syntax OK"
 
 echo "2. Syntax check - lib modules..."
-node --check lib/*.js
+node --check src/lib/*.js
 if [ $? -ne 0 ]; then
     echo "❌ Lib modules syntax error"
     exit 1
@@ -25,7 +25,7 @@ modules=("validation" "persistence" "qcli" "http-server" "error-handlers" "messa
 
 for module in "${modules[@]}"; do
     echo "  Testing $module..."
-    node -e "import('./lib/$module.js').then(() => console.log('$module OK')).catch(e => { console.error('$module ERROR:', e.message); process.exit(1); })"
+    node -e "import('./src/lib/$module.js').then(() => console.log('$module OK')).catch(e => { console.error('$module ERROR:', e.message); process.exit(1); })"
     if [ $? -ne 0 ]; then
         echo "❌ $module import failed"
         exit 1

@@ -1,12 +1,12 @@
 # Discord Webhook Documentation
 
 **Created:** 2025-10-05T09:46:18.364Z  
-**Created By:** Alex Chen, Senior DevOps Engineer  
+**Created By:** ZDS AI Team  
 **Purpose:** Individual webhooks for each ZDS bot to prevent message cross-contamination
 
 ## Problem Solved
 
-Previously, all bots shared the same webhook credentials (Devon's legacy webhook), causing:
+Previously, all bots shared the same webhook credentials (legacy shared webhook), causing:
 - Identity confusion between bots
 - Message routing issues  
 - Inability for bots to communicate with each other properly

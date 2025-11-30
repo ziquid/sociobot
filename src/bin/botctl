@@ -4,8 +4,8 @@
 
 # set -x
 
-BOTS=(brooke harriet tara binti devon tim vai pam aiden) # alex
-BOT_SCRIPT="sociobot.js"
+BOTS=(test-agent) # Add your bot names here
+BOT_SCRIPT="src/sociobot.js"
 
 BOT_DIR=~/sca/sociobot
 PIDFILE="/tmp/botctl.pid"

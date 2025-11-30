@@ -3,7 +3,7 @@
 import { Client, GatewayIntentBits } from 'discord.js';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.alex' });
+dotenv.config({ path: '.env.test-agent' });
 
 const client = new Client({
   intents: [

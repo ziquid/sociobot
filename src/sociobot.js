@@ -95,6 +95,7 @@ const EMOJI_MAP = {
   'check': '✅',
   'x': '❌',
   'wave': '👋',
+  'waves': '👋',
   'clap': '👏',
   'pray': '🙏',
   'muscle': '💪',

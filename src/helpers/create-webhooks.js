@@ -4,11 +4,11 @@
  * Discord Webhook Creator for ZDS Bot Infrastructure
  * 
  * Purpose: Creates unique webhooks for each bot to prevent message cross-contamination
- * Author: Alex Chen, Senior DevOps Engineer
+ * Author: ZDS AI Team
  * Date: 2025-09-16
  * 
  * PROBLEM SOLVED:
- * - All bots were sharing the same webhook (Devon's legacy webhook)
+ * - All bots were sharing the same webhook (legacy shared webhook)
  * - This caused identity confusion and message routing issues
  * - Each bot needs its own webhook for proper isolation
  * 
@@ -30,16 +30,7 @@ import path from 'path';
 
 // Bot configurations
 const BOTS = [
-  { name: 'aiden', displayName: 'Aiden (AI)' },
-  { name: 'alex', displayName: 'Alex Chen (AI)' },
-  { name: 'brooke', displayName: 'Brooke (AI)' },
-  { name: 'devon', displayName: 'Devon (AI)' },
-  { name: 'harriet', displayName: 'Harriet (AI)' },
-  { name: 'pam', displayName: 'Pam (AI)' },
-  { name: 'tara', displayName: 'Tara (AI)' },
-  { name: 'tim', displayName: 'Tim (AI)' },
-  { name: 'vai', displayName: 'Vai (AI)' },
-  { name: 'binti', displayName: 'Binti (AI)' }
+  { name: 'test-agent', displayName: 'Test Agent' }
 ];
 
 async function createWebhooks(channelId, targetBot) {
@@ -59,15 +50,15 @@ async function createWebhooks(channelId, targetBot) {
     console.log(`📌 Creating webhooks for all bots`);
   }
 
-  // Use Alex's token for webhook creation (admin privileges)
+  // Use admin bot's token for webhook creation (admin privileges)
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   try {
-    // Load Alex's token for webhook creation
-    const alexEnv = fs.readFileSync('.env.alex', 'utf8');
-    const tokenMatch = alexEnv.match(/DISCORD_TOKEN=(.+)/);
+    // Load admin bot's token for webhook creation
+    const adminEnv = fs.readFileSync('.env.admin-agent', 'utf8');
+    const tokenMatch = adminEnv.match(/DISCORD_TOKEN=(.+)/);
     if (!tokenMatch) {
-      throw new Error('Could not find DISCORD_TOKEN in .env.alex');
+      throw new Error('Could not find DISCORD_TOKEN in .env.admin-agent');
     }
 
     await client.login(tokenMatch[1]);
@@ -150,14 +141,14 @@ async function createWebhookDocumentation(webhookResults, channelId) {
   
   const documentation = `# Discord Webhook Documentation
 
-**Created:** ${timestamp}  
-**Created By:** Alex Chen, Senior DevOps Engineer  
-**Channel ID:** ${channelId}  
-**Purpose:** Individual webhooks for each ZDS bot to prevent message cross-contamination
+**Created:** ${timestamp}
+**Created By:** ZDS AI Team
+**Channel ID:** ${channelId}
+**Purpose:** Individual webhooks for each bot to prevent message cross-contamination
 
 ## Problem Solved
 
-Previously, all bots shared the same webhook credentials (Devon's legacy webhook), causing:
+Previously, all bots shared the same webhook credentials (legacy shared webhook), causing:
 - Identity confusion between bots
 - Message routing issues  
 - Inability for bots to communicate with each other properly
@@ -191,9 +182,7 @@ node create-webhooks.js <channel-id>
 ### To Verify Webhook Configuration:
 \`\`\`bash
 # Check each bot's .env file
-cat .env.alex | grep WEBHOOK
-cat .env.brooke | grep WEBHOOK  
-cat .env.harriet | grep WEBHOOK
+cat .env.test-agent | grep WEBHOOK
 \`\`\`
 
 ## Security Notes
@@ -227,7 +216,7 @@ cat .env.harriet | grep WEBHOOK
 if (process.argv.length < 3) {
   console.error('Usage: node create-webhooks.js <channel-id> [bot-name]');
   console.error('Example: node create-webhooks.js 1417639609231347812');
-  console.error('Example: node create-webhooks.js 1417639609231347812 aiden');
+  console.error('Example: node create-webhooks.js 1417639609231347812 test-agent');
   process.exit(1);
 }
 

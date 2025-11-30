@@ -1,25 +1,16 @@
 #!/bin/bash
 
 # Check DMs for each agent
-# Usage: ./check-dms.sh [agent_name]
+# Usage: ./check-dms.sh [agent_name] [port]
 
-AGENT=${1:-brooke}
+AGENT=${1:-test-agent}
+PORT=${2:-3001}
 
-case $AGENT in
-  "devon")
-    PORT=3001
-    ;;
-  "brooke") 
-    PORT=3002
-    ;;
-  "harriet")
-    PORT=3003
-    ;;
-  *)
-    echo "Usage: $0 [devon|brooke|harriet]"
-    exit 1
-    ;;
-esac
+if [ -z "$AGENT" ]; then
+  echo "Usage: $0 <agent-name> [port]"
+  echo "Example: $0 test-agent 3001"
+  exit 1
+fi
 
 echo "🔍 Checking DMs for $AGENT..."
 echo "================================"

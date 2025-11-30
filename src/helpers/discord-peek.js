@@ -34,9 +34,9 @@ async function peekDiscord(channelName = 'general', limit = 10) {
   try {
     // Use Q CLI with Discord MCP to read messages
     const proc = spawn('q', [
-      'chat', 
-      '--agent', 'brooke', 
-      '--no-interactive', 
+      'chat',
+      '--agent', 'test-agent',
+      '--no-interactive',
       '--trust-all-tools',
       `Read the last ${limit} messages from Discord channel ${channelId} using discord_read_messages. Show each message with timestamp, author, and content.`
     ], { stdio: ['pipe', 'pipe', 'pipe'] });

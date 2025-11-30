@@ -9,9 +9,7 @@ import { Client, GatewayIntentBits } from 'discord.js';
 import fs from 'fs';
 
 const BOTS = [
-  { name: 'alex', displayName: 'Alex Chen (DevOps)', webhookName: 'Alex Chen - DevOps Engineer' },
-  { name: 'brooke', displayName: 'Brooke (Finance)', webhookName: 'Brooke - Financial Manager' },
-  { name: 'harriet', displayName: 'Harriet (HR)', webhookName: 'Harriet - HR Generalist' }
+  { name: 'test-agent', displayName: 'Test Agent', webhookName: 'Test Agent' }
 ];
 
 async function fixWebhooks(channelId) {
@@ -20,9 +18,9 @@ async function fixWebhooks(channelId) {
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
   
   try {
-    // Load Alex's token
-    const alexEnv = fs.readFileSync('.env.alex', 'utf8');
-    const tokenMatch = alexEnv.match(/DISCORD_TOKEN=(.+)/);
+    // Load admin bot's token
+    const adminEnv = fs.readFileSync('.env.admin-agent', 'utf8');
+    const tokenMatch = adminEnv.match(/DISCORD_TOKEN=(.+)/);
     await client.login(tokenMatch[1]);
     
     const channel = await client.channels.fetch(channelId);

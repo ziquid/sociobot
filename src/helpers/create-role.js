@@ -8,7 +8,7 @@ const agentName = process.argv[3];
 
 if (!roleName || !agentName) {
   console.error('Usage: node create-role.js <role-name> <admin-agent>');
-  console.error('Example: node create-role.js "ZDS Bots" "alex"');
+  console.error('Example: node create-role.js "Bot Role" "test-agent"');
   process.exit(1);
 }
 

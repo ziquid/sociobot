@@ -5,11 +5,11 @@ import dotenv from 'dotenv';
 
 const channelName = process.argv[2];
 const isPrivate = process.argv[3] === '--private';
-const botName = process.argv[4] || 'devon';
+const botName = process.argv[4] || 'test-agent';
 
 if (!channelName) {
   console.error('Usage: node create-channel.js <channel-name> [--private] [bot-name]');
-  console.error('Example: node create-channel.js proj-ticketing --private devon');
+  console.error('Example: node create-channel.js proj-ticketing --private test-agent');
   process.exit(1);
 }
 

@@ -10,7 +10,7 @@ echo
 # Key channel IDs
 GENERAL_CHANNEL="405195505828626432"
 BOT_TESTING_CHANNEL="1416478751881166859"
-BROOKE_DM_CHANNEL=""  # Add if needed
+AGENT_DM_CHANNEL=""  # Add if needed
 
 # Function to format timestamp
 format_time() {
@@ -33,7 +33,7 @@ monitor_channel() {
     echo "----------------------------------------"
     
     # Use Q CLI with Discord MCP to read messages
-    q chat --agent brooke --no-interactive --trust-all-tools "Use discord_read_messages tool to get the last $limit messages from channel $channel_id. Format each message as: [TIME] USERNAME: MESSAGE" 2>/dev/null | \
+    q chat --agent test-agent --no-interactive --trust-all-tools "Use discord_read_messages tool to get the last $limit messages from channel $channel_id. Format each message as: [TIME] USERNAME: MESSAGE" 2>/dev/null | \
     grep -E "^\[.*\].*:" | \
     tail -$limit
     
@@ -47,9 +47,9 @@ echo
 monitor_channel "$GENERAL_CHANNEL" "General" 5
 monitor_channel "$BOT_TESTING_CHANNEL" "Bot Testing" 5
 
-# If Brooke wants to monitor her DMs, uncomment:
-# if [ -n "$BROOKE_DM_CHANNEL" ]; then
-#     monitor_channel "$BROOKE_DM_CHANNEL" "Brooke DMs" 3
+# If monitoring DMs is needed, uncomment:
+# if [ -n "$AGENT_DM_CHANNEL" ]; then
+#     monitor_channel "$AGENT_DM_CHANNEL" "Agent DMs" 3
 # fi
 
 echo "✅ Monitor complete. Run this script again to refresh."

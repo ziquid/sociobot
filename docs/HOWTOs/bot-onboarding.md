@@ -16,7 +16,7 @@ This guide covers everything needed to onboard a new Discord bot to the ZDS AI s
 ### 1.1 Create Bot Application
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
 2. Click "New Application"
-3. Name your bot using the format: `{AgentFirstName} (AI)` (e.g., "Aiden (AI)")
+3. Name your bot using the format: `{AgentFirstName} (AI)` (e.g., "Test Agent")
 4. Save the application
 
 ### 1.2 Configure Bot Settings

@@ -10,7 +10,7 @@ const adminAgent = process.argv[4];
 
 if (!roleName || !targetAgent || !adminAgent) {
   console.error('Usage: node assign-role.js <role-name> <target-agent> <admin-agent>');
-  console.error('Example: node assign-role.js "ZDS Bots" "brooke" "alex"');
+  console.error('Example: node assign-role.js "Bot Role" "test-agent" "admin-agent"');
   process.exit(1);
 }
 

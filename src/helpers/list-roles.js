@@ -7,7 +7,7 @@ const agentName = process.argv[2];
 
 if (!agentName) {
   console.error('Usage: node list-roles.js <agent-name>');
-  console.error('Example: node list-roles.js alex');
+  console.error('Example: node list-roles.js test-agent');
   process.exit(1);
 }
 

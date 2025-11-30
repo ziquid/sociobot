@@ -7,11 +7,11 @@
 node download-channel-history.js <bot-name> <channel-id> --limit 50
 
 # Read last 100 DM messages
-node download-channel-history.js brooke 1416514401350979636 --limit 100
+node download-channel-history.js test-agent 1416514401350979636 --limit 100
 
 # Get different output formats
-node download-channel-history.js alex <channel-id> --limit 25 --format text
-node download-channel-history.js alex <channel-id> --limit 25 --format markdown
+node download-channel-history.js test-agent <channel-id> --limit 25 --format text
+node download-channel-history.js test-agent <channel-id> --limit 25 --format markdown
 ```
 
 ## Step by Step
@@ -34,13 +34,13 @@ node download-channel-history.js alex <channel-id> --limit 25 --format markdown
 
 ```bash
 # Last 20 messages from bot-testing
-node download-channel-history.js alex 1418018482804621333 --limit 20
+node download-channel-history.js test-agent 1418018482804621333 --limit 20
 
 # Last 50 DMs with user
-node download-channel-history.js brooke 1416514401350979636 --limit 50
+node download-channel-history.js test-agent 1416514401350979636 --limit 50
 
 # Export as markdown
-node download-channel-history.js alex 1418018482804621333 --limit 30 --format markdown
+node download-channel-history.js test-agent 1418018482804621333 --limit 30 --format markdown
 ```
 
 ## Output Formats
