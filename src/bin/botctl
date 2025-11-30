@@ -1,11 +1,11 @@
 #!/usr/bin/env zsh
-# Discord Bot Monitor and Auto-Restart Script
-# Monitors Discord bots and restarts them when needed
+# Sociobot Monitor and Auto-Restart Script
+# Monitors Sociobot instances and restarts them when needed
 
 # set -x
 
 BOTS=(brooke harriet tara binti devon tim vai pam aiden) # alex
-BOT_SCRIPT="discord-bot.js"
+BOT_SCRIPT="sociobot.js"
 
 BOT_DIR=~/sca/sociobot
 PIDFILE="/tmp/botctl.pid"
@@ -16,12 +16,12 @@ MAX_HIGH_LOAD_COUNT=5
 MONITORING=true
 
 # Log command invocation
-logger -p user.info "discord-bot: Command invoked: $0 $*"
+logger -p user.info "sociobot: Command invoked: $0 $*"
 
 # Change to bot directory
 cd "$BOT_DIR" || {
   echo "Error: Cannot change to bot directory: $BOT_DIR" >&2
-  logger -p user.error "discord-bot: Fatal Error: Failed to change to directory $BOT_DIR"
+  logger -p user.error "sociobot: Fatal Error: Failed to change to directory $BOT_DIR"
   exit 1
 }
 
@@ -32,7 +32,7 @@ trap 'die 130 "Interrupted by user (Ctrl+C)"' SIGINT
 
 log_message() {
   if [[ "$MONITORING" == "true" ]]; then
-    logger -p user.info "discord-bot: $1"
+    logger -p user.info "sociobot: $1"
   else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
   fi
@@ -425,9 +425,9 @@ case "${1:-help}" in
       fi
     else
       # Existing behavior: show botctl system logs
-      /usr/bin/log show --predicate 'process == "logger" AND eventMessage CONTAINS "discord-bot:"' \
+      /usr/bin/log show --predicate 'process == "logger" AND eventMessage CONTAINS "sociobot:"' \
           --info --debug --last 8h --style compact \
-        | sed 's/ logger\[[^]]*\] discord-bot: //'
+        | sed 's/ logger\[[^]]*\] sociobot: //'
     fi
     ;;
   "monitor"|"mon")

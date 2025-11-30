@@ -1,14 +1,14 @@
 {
-  "name": "devon-discord-bot",
+  "name": "sociobot",
   "version": "1.0.0",
-  "description": "Devon Discord Bot with Q CLI Integration",
-  "main": "devon-bot.js",
+  "description": "Sociobot - Multi-Agent Discord Bot System",
+  "main": "sociobot.js",
   "type": "module",
   "scripts": {
-    "start": "node devon-bot.js",
-    "dev": "node --watch devon-bot.js"
+    "start": "node sociobot.js",
+    "dev": "node --watch sociobot.js"
   },
-  "author": "Devon (ZDS AI)",
+  "author": "ZDS AI Team",
   "license": "MIT",
   "dependencies": {
     "discord.js": "^14.22.1",

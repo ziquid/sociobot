@@ -62,7 +62,7 @@ messages: messages.map(msg => {
 
 ### Inbound (Processing from Discord)
 
-**Location:** `discord-bot.js` → `handleRealtimeMessage()` and batch processing
+**Location:** `sociobot.js` → `handleRealtimeMessage()` and batch processing
 
 **Response Handling:**
 ```javascript
@@ -163,12 +163,12 @@ const ACL_COURTESY_MESSAGE = "\n\nFor your information only. Replies to this mes
 2. **Responses not blocked**: Verify `processRealtimeMessage()` and `processBatchedMessages()` check ACL limits
 3. **Missing courtesy messages**: Check agent processing adds courtesy message at ACL = MAX_ACL-1
 4. **Reactions not working at limit**: Verify `aclLimited` flag is properly set and handled
-5. **Text responses at limit**: Confirm discord-bot.js blocks text when `aclLimited === true`
+5. **Text responses at limit**: Confirm sociobot.js blocks text when `aclLimited === true`
 
 ### Debug Commands
 Enable debug mode to see ACL processing:
 ```bash
-node discord-bot.js <agent-name> --debug
+node sociobot.js <agent-name> --debug
 ```
 
 This will show ACL values and routing decisions in the console output.

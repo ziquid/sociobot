@@ -1,8 +1,8 @@
 #!/bin/bash
 
-BOTNAME=discord-bot.js
+BOTNAME=sociobot.js
 
-echo "=== Testing Discord Bot ==="
+echo "=== Testing Sociobot ==="
 
 echo "1. Syntax check - main file..."
 node --check "$BOTNAME"
@@ -109,6 +109,6 @@ echo
 echo "🎉 All tests passed!"
 echo
 echo "Next steps:"
-echo "  - Copy .env.example to .env.yourbot with real Discord tokens"
-echo "  - Test run-once mode: node "$BOTNAME" yourbot --run-once"
-echo "  - Test with HTTP server: HTTP_PORT=3002 node "$BOTNAME" yourbot"
+echo "  - Copy .env.example to .env.yourbot with real tokens"
+echo "  - Test run-once mode: node $BOTNAME yourbot --run-once"
+echo "  - Test with HTTP server: HTTP_PORT=3002 node $BOTNAME yourbot"
