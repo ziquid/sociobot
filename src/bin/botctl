@@ -12,7 +12,7 @@ PIDFILE="/tmp/botctl.pid"
 MAX_LOAD_THRESHOLD=15
 EMERGENCY_LOAD_THRESHOLD=30
 HIGH_LOAD_COUNT=0
-MAX_HIGH_LOAD_COUNT=5
+MAX_HIGH_LOAD_COUNT=9
 MONITORING=true
 
 # Log command invocation
@@ -31,11 +31,8 @@ cd "$BOT_DIR" || {
 trap 'die 130 "Interrupted by user (Ctrl+C)"' SIGINT
 
 log_message() {
-  if [[ "$MONITORING" == "true" ]]; then
-    logger -p user.info "sociobot: $1"
-  else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
-  fi
+  [[ "$MONITORING" == true ]] && logger -p user.info "sociobot: $1"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 get_load_avg() {
@@ -50,18 +47,18 @@ get_bot_status() {
   declare -r BOT_NAME="$1"
 
   if pgrep -f "$BOT_SCRIPT $BOT_NAME --debug" > /dev/null; then
-    echo "debug"
+    echo debug
   elif pgrep -f "$BOT_SCRIPT $BOT_NAME" > /dev/null; then
-    echo "running"
+    echo running
   else
-    echo "stopped"
+    echo stopped
   fi
 }
 
 is_bot_running() {
   declare -r BOT_NAME="$1"
   local STATUS=$(get_bot_status "$BOT_NAME")
-  [[ "$STATUS" != "stopped" ]]
+  [[ "$STATUS" != stopped ]]
 }
 
 is_monitor_running() {
@@ -108,7 +105,7 @@ start_single_bot() {
 
   # Start with clean environment to prevent ZDS_AI_AGENT_* variable leakage
   # Only pass through essential system variables
-  if [[ "$DEBUG_FLAG" == "--debug" ]]; then
+  if [[ "$DEBUG_FLAG" == --debug ]]; then
     log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       nohup node "$BOT_SCRIPT" "$BOT_NAME" --debug > "$LOG_FILE" 2>&1 &
@@ -197,6 +194,7 @@ start_all_bots() {
   # Start all bots
   for BOT in "${BOTS[@]}"; do
     start_single_bot "$BOT"
+    sleep 5 # FIXME: don't sleep after last bot startup?
   done
 
   log_message "🎯 ${#BOTS[@]} bots startup complete"
@@ -236,13 +234,13 @@ show_status() {
   for BOT in "${BOTS[@]}"; do
     local STATUS=$(get_bot_status "$BOT")
     case "$STATUS" in
-      "debug")
+      debug)
         echo "🐛 $BOT bot: RUNNING (DEBUG MODE)"
         ;;
-      "running")
+      running)
         echo "✅ $BOT bot: RUNNING"
         ;;
-      "stopped")
+      stopped)
         echo "❌ $BOT bot: STOPPED"
         ;;
     esac
@@ -258,7 +256,7 @@ monitor_loop() {
   echo $$ > "$PIDFILE"
   trap 'rm -f "$PIDFILE"; die 0 "Monitor stopped"' EXIT
 
-  log_message "==============================="
+  log_message ===============================
   log_message "NEW MONITOR SESSION STARTED, PID $$"
   log_message "🔍 Starting continuous monitoring of ${#BOTS[@]} bots..."
 
@@ -283,7 +281,7 @@ monitor_loop() {
 }
 
 start_monitor() {
-  if [[ "$1" != "--foreground" && "$1" != "-fg" ]]; then
+  if [[ "$1" != --foreground && "$1" != -fg ]]; then
     nohup botctl monitor --foreground > /dev/null 2>&1 &
     echo "🔍 Monitor started in background (PID $!)"
     exit 0
@@ -295,13 +293,13 @@ die() {
   declare -r EXIT_CODE="$1"
   declare -r MESSAGE="$2"
   log_message "💀 dying with exit code $EXIT_CODE: $MESSAGE"
-  log_message "==============================="
-  exit "$EXIT_CODE"
+  log_message ===============================
+  exit $EXIT_CODE
 }
 
 # Handle script arguments
 case "${1:-help}" in
-  "start"|"run")
+  start|run)
     if [[ -n "$2" ]]; then
       # Parse arguments to separate --debug flag from bot names
       local DEBUG_FLAG=""
@@ -309,8 +307,8 @@ case "${1:-help}" in
 
       shift  # Remove command name
       for arg in "$@"; do
-        if [[ "$arg" == "--debug" ]]; then
-          DEBUG_FLAG="--debug"
+        if [[ "$arg" == --debug ]]; then
+          DEBUG_FLAG=--debug
         else
           BOT_NAMES+=("$arg")
         fi
@@ -336,7 +334,7 @@ case "${1:-help}" in
       start_all_bots
     fi
     ;;
-  "stop"|"kill")
+  stop|kill)
     if [[ -n "$2" ]]; then
       shift  # Remove command name
       for BOT_NAME in "$@"; do
@@ -354,7 +352,7 @@ case "${1:-help}" in
       show_status
     fi
     ;;
-  "restart")
+  restart)
     if [[ -n "$2" ]]; then
       # Parse arguments to separate --debug flag from bot names
       local DEBUG_FLAG=""
@@ -362,13 +360,14 @@ case "${1:-help}" in
 
       shift  # Remove command name
       for arg in "$@"; do
-        if [[ "$arg" == "--debug" ]]; then
-          DEBUG_FLAG="--debug"
+        if [[ "$arg" == --debug ]]; then
+          DEBUG_FLAG=--debug
         else
           BOT_NAMES+=("$arg")
         fi
       done
 
+      # FIXME: support restart_all_bots with --debug
       if [[ ${#BOT_NAMES[@]} -eq 0 ]]; then
         echo "❌ Error: No bot names specified" >&2
         echo "Valid bots: ${BOTS[*]}" >&2
@@ -390,10 +389,10 @@ case "${1:-help}" in
       restart_all_bots
     fi
     ;;
-  "status"|"st")
+  status|st)
     show_status
     ;;
-  "tail")
+  tail)
     # tail is an alias for logs -f (follow mode)
     if [[ -n "$2" ]]; then
       set -- "logs" "$2" "-f"
@@ -404,15 +403,15 @@ case "${1:-help}" in
       exit 1
     fi
     ;& # fall through to logs case
-  "logs"|"log")
+  logs|log)
     if [[ -n "$2" ]]; then
       # Parse arguments: detect bot-name and -f flag
       local BOT_NAME FOLLOW_FLAG
 
       shift  # Remove command name
       for arg in "$@"; do
-        if [[ "$arg" == "-f" ]]; then
-          FOLLOW_FLAG="-f"
+        if [[ "$arg" == -f ]]; then
+          FOLLOW_FLAG=-f
         else
           BOT_NAME="$arg"
         fi
@@ -430,10 +429,10 @@ case "${1:-help}" in
         | sed 's/ logger\[[^]]*\] sociobot: //'
     fi
     ;;
-  "monitor"|"mon")
+  monitor|mon)
     start_monitor "$2"
     ;;
-  "restart-monitor"|"rmon")
+  restart-monitor|rmon)
     stop_monitor
     restart_all_bots
     start_monitor "$2"
@@ -442,7 +441,7 @@ case "${1:-help}" in
     HELP_WIDTH=42
     echo "Usage: $0 <command> [--debug] [bot_name...]"
     echo
-    echo "These commands run once and exit:"
+    echo These commands run once and exit:
     printf "  %-${HELP_WIDTH}s - %s\n" "start (run) [--debug] [bot_name...]" "Start all bots or specific bot(s)"
     printf "  %-${HELP_WIDTH}s - %s\n" "stop (kill) [bot_name...]" "Stop monitor and all bots, or specific bot(s)"
     printf "  %-${HELP_WIDTH}s - %s\n" "restart [--debug] [bot_name...]" "Restart all bots or specific bot(s)"
@@ -452,16 +451,16 @@ case "${1:-help}" in
     printf "  %-${HELP_WIDTH}s - %s\n" "tail <bot-name>" "Follow bot-name's log (alias for logs -f)"
     printf "  %-${HELP_WIDTH}s - %s\n" "help" "Show this help message"
     echo
-    echo "These commands run continuously until interrupted:"
+    echo These commands run continuously until interrupted:
     printf "  %-${HELP_WIDTH}s - %s\n" "monitor (mon) [-fg]" "Monitor bots (background by default, -fg for foreground)"
     printf "  %-${HELP_WIDTH}s - %s\n" "restart-monitor (rmon) [-fg]" "Stop monitor, restart bots, start new monitor"
     echo
-    echo "Options:"
+    echo Options:
     printf "  %-${HELP_WIDTH}s - %s\n" "--debug" "Enable verbose debug logging (applies to all bots)"
     echo
     echo "Valid bot names: ${BOTS[*]}"
     echo
-    echo "Examples:"
+    echo Examples:
     echo "  $0 start <bot>                 # Start single bot"
     echo "  $0 start <bot1> <bot2>         # Start multiple bots"
     echo "  $0 start --debug <bot1> <bot2> # Start multiple bots with debug logging"
