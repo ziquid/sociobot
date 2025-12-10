@@ -81,11 +81,29 @@ function transcribeAudio(filePath) {
 // Encode text as speech using encode-speech command
 export function encodeSpeech(text, agentName) {
   try {
+    // Get agent environment variables from zai
+    const zaiEnvOutput = execSync(`zai pv ${agentName}`, {
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024
+    });
+
+    // Parse environment variables from zai pv output
+    const env = { ...process.env };
+    const envLines = zaiEnvOutput.split('\n').slice(1); // Skip first line (command)
+
+    for (const line of envLines) {
+      const match = line.match(/^(ZDS_AI_AGENT_[^=]+)=(.*)$/);
+      if (match) {
+        env[match[1]] = match[2].replace(/^'(.*)'$/, '$1'); // Remove surrounding quotes if present
+      }
+    }
+
     const audioPath = execSync(`encode-speech ${agentName} -`, {
       input: text,
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-      timeout: 60000 // 60 second timeout
+      timeout: 60000, // 60 second timeout
+      env
     });
     return audioPath.toString().trim();
   } catch (error) {

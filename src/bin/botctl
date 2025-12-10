@@ -4,10 +4,16 @@
 
 # set -x
 
-BOTS=(test-agent) # Add your bot names here
-BOT_SCRIPT="src/sociobot.js"
-
 BOT_DIR=~/sca/sociobot
+
+# Get all agents and filter to only those with Discord credentials
+ALL_AGENTS=($(zai lc))
+BOTS=()
+for agent in "${ALL_AGENTS[@]}"; do
+  if [[ -f "$BOT_DIR/.env.$agent" ]]; then
+    BOTS+=($agent)
+  fi
+done
 PIDFILE="/tmp/botctl.pid"
 MAX_LOAD_THRESHOLD=15
 EMERGENCY_LOAD_THRESHOLD=30
@@ -46,9 +52,9 @@ get_load_int() {
 get_bot_status() {
   declare -r BOT_NAME="$1"
 
-  if pgrep -f "$BOT_SCRIPT $BOT_NAME --debug" > /dev/null; then
+  if pgrep -f "sociobot $BOT_NAME --debug" > /dev/null; then
     echo debug
-  elif pgrep -f "$BOT_SCRIPT $BOT_NAME" > /dev/null; then
+  elif pgrep -f "sociobot $BOT_NAME" > /dev/null; then
     echo running
   else
     echo stopped
@@ -108,10 +114,10 @@ start_single_bot() {
   if [[ "$DEBUG_FLAG" == --debug ]]; then
     log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      nohup node "$BOT_SCRIPT" "$BOT_NAME" --debug > "$LOG_FILE" 2>&1 &
+      nohup sociobot "$BOT_NAME" --debug > "$LOG_FILE" 2>&1 &
   else
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      nohup node "$BOT_SCRIPT" "$BOT_NAME" > "$LOG_FILE" 2>&1 &
+      nohup sociobot "$BOT_NAME" > "$LOG_FILE" 2>&1 &
   fi
 
   sleep 3
@@ -134,12 +140,12 @@ stop_single_bot() {
   fi
 
   log_message "🛑 Stopping $BOT_NAME bot..."
-  pkill -f "$BOT_SCRIPT $BOT_NAME" 2>/dev/null || true
+  pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
   sleep 2
 
   if is_bot_running "$BOT_NAME"; then
     log_message "⚠️  $BOT_NAME bot still running, force killing..."
-    pkill -9 -f "$BOT_SCRIPT $BOT_NAME" 2>/dev/null || true
+    pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
     sleep 1
   fi
 
@@ -204,13 +210,13 @@ stop_all_bots() {
   log_message "🛑 Stopping all Discord bots..."
 
   # Kill all bot processes
-  pkill -f "$BOT_SCRIPT" 2>/dev/null || true
+  pkill -f "sociobot" 2>/dev/null || true
   sleep 2
 
   # Verify they're stopped
-  if pgrep -f "$BOT_SCRIPT" > /dev/null; then
+  if pgrep -f "sociobot" > /dev/null; then
     log_message "⚠️  Some bots still running, force killing..."
-    pkill -9 -f "$BOT_SCRIPT" 2>/dev/null || true
+    pkill -9 -f "sociobot" 2>/dev/null || true
   fi
 
   log_message "✅ All bots stopped"

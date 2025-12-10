@@ -1,11 +1,12 @@
 {
   "name": "sociobot",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
   "main": "src/sociobot.js",
   "type": "module",
   "bin": {
-    "botctl": "src/bin/botctl"
+    "botctl": "src/bin/botctl",
+    "sociobot": "src/sociobot.js"
   },
   "scripts": {
     "start": "node src/sociobot.js",
