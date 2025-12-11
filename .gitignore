@@ -20,3 +20,5 @@ data/servers/*.json
 # IDE/AI assistant directories
 .amazonq/
 .grok/
+voice-message.txt
+sociobot*.tgz

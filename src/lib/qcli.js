@@ -119,6 +119,12 @@ function isAudioFile(contentType) {
          contentType === 'video/ogg'; // Discord voice messages use video/ogg
 }
 
+// Check if contentType is an image format
+function isImageFile(contentType) {
+  if (!contentType) return false;
+  return contentType.startsWith('image/');
+}
+
 let consecutiveFailures = 0;
 let activeProcesses = 0;
 
@@ -351,7 +357,11 @@ ${convertedContent}`;
         if (attachment.size < MAX_DOWNLOAD_SIZE) {
           try {
             const localPath = await downloadAttachment(attachment.url, attachment.name, agentName);
-            query += `\n- ${attachment.name} (${attachment.contentType || 'unknown type'}, ${sizeDisplay}) - ${localPath}`;
+
+            // Prepend @ to image paths for vision model support
+            const pathForAgent = isImageFile(attachment.contentType) ? `@${localPath}` : localPath;
+
+            query += `\n- ${attachment.name} (${attachment.contentType || 'unknown type'}, ${sizeDisplay}) - ${pathForAgent}`;
             if (debug) {
               log(`Downloaded attachment to: ${localPath}`);
             }
