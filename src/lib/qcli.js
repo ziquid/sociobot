@@ -333,7 +333,7 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
     // Get current ACL from message and check against agent's max ACL
     const currentACL = getACL(message);
     const maxACL = getMaxACL(channel, debug);
-    const wouldExceedACL = currentACL >= maxACL - 1;
+    const wouldExceedACL = currentACL >= maxACL;
     const isAtACLLimit = currentACL === maxACL;
 
     // Build query with message content
@@ -406,7 +406,7 @@ ${convertedContent}`;
     if (wouldExceedACL) {
       query = addCourtesyMessage(query);
       if (debug) {
-        log(`ACL limit would be exceeded (${currentACL} >= ${maxACL - 1}), adding courtesy message`);
+        log(`ACL limit would be exceeded (${currentACL} >= ${maxACL}), adding courtesy message`);
       }
     }
 
@@ -493,7 +493,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
       },
       messages: messages.map(msg => {
         const msgACL = getACL(msg);
-        const wouldExceedACL = msgACL >= maxACL - 1;
+        const wouldExceedACL = msgACL >= maxACL;
         const isAtACLLimit = msgACL === maxACL;
         return {
           id: msg.id,
