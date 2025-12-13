@@ -401,7 +401,12 @@ case "${1:-help}" in
   tail)
     # tail is an alias for logs -f (follow mode)
     if [[ -n "$2" ]]; then
-      set -- "logs" "$2" "-f"
+      # Strip -f flag if present (tail always follows)
+      if [[ "$2" == "-f" ]]; then
+        set -- "logs" "$3" "-f"
+      else
+        set -- "logs" "$2" "-f"
+      fi
     else
       echo "❌ Error: tail command requires a bot name" >&2
       echo "Usage: $0 tail <bot_name>" >&2
