@@ -4,6 +4,20 @@
 
 # set -x
 
+# Check for version option
+if [[ "$1" == "--version" || "$1" == "-v" ]]; then
+  # Find package.json by resolving the script's location
+  SCRIPT_PATH="${0:A}"
+  PACKAGE_DIR="${SCRIPT_PATH:h:h:h}"
+  if [[ -f "$PACKAGE_DIR/package.json" ]]; then
+    jq -r '.version' "$PACKAGE_DIR/package.json"
+  else
+    echo "Error: Cannot find package.json" >&2
+    exit 1
+  fi
+  exit 0
+fi
+
 BOT_DIR=~/sca/sociobot
 
 # Get all agents and filter to only those with Discord credentials
@@ -107,17 +121,18 @@ start_single_bot() {
     return 0
   fi
 
-  declare -r LOG_FILE="data/logs/${BOT_NAME}-bot.log"
+  declare -r LOGS_DIR=$(zai pv "$BOT_NAME" | grep '^ZDS_AI_AGENT_LOGS_DIR=' | cut -d= -f2-)
+  declare -r LOG_FILE="${LOGS_DIR}/sociobot.log"
 
   # Start with clean environment to prevent ZDS_AI_AGENT_* variable leakage
   # Only pass through essential system variables
   if [[ "$DEBUG_FLAG" == --debug ]]; then
     log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      nohup sociobot "$BOT_NAME" --debug > "$LOG_FILE" 2>&1 &
+      nohup sociobot "$BOT_NAME" --debug >> "$LOG_FILE" 2>&1 &
   else
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      nohup sociobot "$BOT_NAME" > "$LOG_FILE" 2>&1 &
+      nohup sociobot "$BOT_NAME" >> "$LOG_FILE" 2>&1 &
   fi
 
   sleep 3
@@ -430,7 +445,8 @@ case "${1:-help}" in
 
       if [[ -n "$BOT_NAME" ]]; then
         # Construct log file path and execute tail
-        local LOG_FILE="$BOT_DIR/data/logs/${BOT_NAME}-bot.log"
+        local LOGS_DIR=$(zai pv "$BOT_NAME" | grep '^ZDS_AI_AGENT_LOGS_DIR=' | cut -d= -f2-)
+        local LOG_FILE="${LOGS_DIR}/sociobot.log"
         tail -n 55 $FOLLOW_FLAG "$LOG_FILE"
       fi
     else

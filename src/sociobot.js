@@ -1,6 +1,18 @@
 #!/usr/bin/env node
 
 import { showHelp } from './lib/help.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Check for version option
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+  console.log(packageJson.version);
+  process.exit(0);
+}
 
 // Check for help option
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
