@@ -328,7 +328,7 @@ case "${1:-help}" in
 
       shift  # Remove command name
       for arg in "$@"; do
-        if [[ "$arg" == --debug ]]; then
+        if [[ "$arg" == --debug || "$arg" == debug ]]; then
           DEBUG_FLAG=--debug
         else
           BOT_NAMES+=("$arg")
@@ -381,7 +381,7 @@ case "${1:-help}" in
 
       shift  # Remove command name
       for arg in "$@"; do
-        if [[ "$arg" == --debug ]]; then
+        if [[ "$arg" == --debug || "$arg" == debug ]]; then
           DEBUG_FLAG=--debug
         else
           BOT_NAMES+=("$arg")
