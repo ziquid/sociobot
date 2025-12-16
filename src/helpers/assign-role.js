@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import dotenv from 'dotenv';
+import { execSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
 import { Client, GatewayIntentBits } from "discord.js";
-import fs from 'fs';
 
 const roleName = process.argv[2];
 const targetAgent = process.argv[3];
@@ -17,25 +18,46 @@ if (!roleName || !targetAgent || !adminAgent) {
 // Load target bot's user ID
 let targetBotUserId;
 try {
-  const targetEnv = fs.readFileSync(`.env.${targetAgent}`, 'utf8');
+  // Resolve target agent home directory
+  const targetHomeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                        execSync(`echo ~${targetAgent}`).toString().trim();
+  const targetEnvPath = `${targetHomeDir}/.env`;
+
+  if (!existsSync(targetEnvPath)) {
+    console.error(`Error: Environment file not found: ${targetEnvPath}`);
+    process.exit(1);
+  }
+
+  const targetEnv = readFileSync(targetEnvPath, 'utf8');
   const match = targetEnv.match(/BOT_USER_ID=(.+)/);
   if (!match) {
-    console.error(`Error: BOT_USER_ID not found in .env.${targetAgent}`);
+    console.error(`Error: BOT_USER_ID not found in ${targetEnvPath}`);
     process.exit(1);
   }
   targetBotUserId = match[1].trim();
 } catch (error) {
-  console.error(`Error: Could not read .env.${targetAgent}`);
+  console.error(`Error: Could not read target agent env file:`, error.message);
   process.exit(1);
 }
 
 // Load admin credentials
-dotenv.config({ path: `.env.${adminAgent}` });
+// Resolve admin agent home directory
+const adminHomeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                     execSync(`echo ~${adminAgent}`).toString().trim();
+const adminEnvPath = `${adminHomeDir}/.env`;
+
+if (!existsSync(adminEnvPath)) {
+  console.error(`Error: Environment file not found: ${adminEnvPath}`);
+  process.exit(1);
+}
+
+process.env.DOTENV_CONFIG_QUIET = 'true';
+dotenv.config({ path: adminEnvPath, quiet: true });
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 if (!DISCORD_TOKEN) {
-  console.error(`Error: DISCORD_TOKEN not found in .env.${adminAgent}`);
+  console.error(`Error: DISCORD_TOKEN not found in ${adminEnvPath}`);
   process.exit(1);
 }
 

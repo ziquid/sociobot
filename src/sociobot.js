@@ -30,7 +30,21 @@ if (!agentName) {
 }
 
 import dotenv from 'dotenv';
-dotenv.config({ path: `.env.${agentName}`, quiet: true });
+import { execSync } from 'child_process';
+import { existsSync } from 'fs';
+
+// Resolve agent home directory
+const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                execSync(`echo ~${agentName}`).toString().trim();
+const envPath = `${homeDir}/.env`;
+
+if (!existsSync(envPath)) {
+  console.error(`Error: Environment file not found: ${envPath}`);
+  process.exit(1);
+}
+
+process.env.DOTENV_CONFIG_QUIET = 'true';
+dotenv.config({ path: envPath, quiet: true });
 
 // Validate environment variables
 import { validEnvironment } from "./lib/validation.js";

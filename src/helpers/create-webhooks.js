@@ -25,7 +25,8 @@
  */
 
 import { Client, GatewayIntentBits } from 'discord.js';
-import fs from 'fs';
+import { execSync } from 'child_process';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import path from 'path';
 
 // Bot configurations
@@ -55,10 +56,18 @@ async function createWebhooks(channelId, targetBot) {
 
   try {
     // Load admin bot's token for webhook creation
-    const adminEnv = fs.readFileSync('.env.admin-agent', 'utf8');
+    const adminHomeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                         execSync(`echo ~admin-agent`).toString().trim();
+    const adminEnvPath = `${adminHomeDir}/.env`;
+
+    if (!existsSync(adminEnvPath)) {
+      throw new Error(`Admin environment file not found: ${adminEnvPath}`);
+    }
+
+    const adminEnv = readFileSync(adminEnvPath, 'utf8');
     const tokenMatch = adminEnv.match(/DISCORD_TOKEN=(.+)/);
     if (!tokenMatch) {
-      throw new Error('Could not find DISCORD_TOKEN in .env.admin-agent');
+      throw new Error(`Could not find DISCORD_TOKEN in ${adminEnvPath}`);
     }
 
     await client.login(tokenMatch[1]);
@@ -119,18 +128,25 @@ async function createWebhooks(channelId, targetBot) {
 }
 
 async function updateEnvFile(botName, webhookData) {
-  const envPath = `.env.${botName}`;
-  
+  // Resolve agent home directory
+  const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                  execSync(`echo ~${botName}`).toString().trim();
+  const envPath = `${homeDir}/.env`;
+
   try {
-    let envContent = fs.readFileSync(envPath, 'utf8');
-    
+    if (!existsSync(envPath)) {
+      throw new Error(`Environment file not found: ${envPath}`);
+    }
+
+    let envContent = readFileSync(envPath, 'utf8');
+
     // Update webhook ID and token
     envContent = envContent.replace(/WEBHOOK_ID=.*/, `WEBHOOK_ID=${webhookData.webhookId}`);
     envContent = envContent.replace(/WEBHOOK_TOKEN=.*/, `WEBHOOK_TOKEN=${webhookData.webhookToken}`);
-    
-    fs.writeFileSync(envPath, envContent);
+
+    writeFileSync(envPath, envContent);
     console.log(`   📝 Updated ${envPath}`);
-    
+
   } catch (error) {
     console.error(`   ❌ Failed to update ${envPath}:`, error.message);
   }

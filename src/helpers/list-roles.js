@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import dotenv from 'dotenv';
+import { execSync } from 'child_process';
+import { existsSync } from 'fs';
 import { Client, GatewayIntentBits } from "discord.js";
 
 const agentName = process.argv[2];
@@ -11,12 +13,23 @@ if (!agentName) {
   process.exit(1);
 }
 
-dotenv.config({ path: `.env.${agentName}` });
+// Resolve agent home directory
+const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                execSync(`echo ~${agentName}`).toString().trim();
+const envPath = `${homeDir}/.env`;
+
+if (!existsSync(envPath)) {
+  console.error(`Error: Environment file not found: ${envPath}`);
+  process.exit(1);
+}
+
+process.env.DOTENV_CONFIG_QUIET = 'true';
+dotenv.config({ path: envPath, quiet: true });
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 if (!DISCORD_TOKEN) {
-  console.error(`Error: DISCORD_TOKEN not found in .env.${agentName}`);
+  console.error(`Error: DISCORD_TOKEN not found in ${envPath}`);
   process.exit(1);
 }
 

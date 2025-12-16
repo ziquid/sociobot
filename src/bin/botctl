@@ -24,7 +24,7 @@ BOT_DIR=~/sca/sociobot
 ALL_AGENTS=($(zai lc))
 BOTS=()
 for agent in "${ALL_AGENTS[@]}"; do
-  if [[ -f "$BOT_DIR/.env.$agent" ]]; then
+  if [[ -f ~${agent}/.env ]]; then
     BOTS+=($agent)
   fi
 done

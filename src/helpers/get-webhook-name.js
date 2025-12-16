@@ -6,13 +6,25 @@
 
 import { Client, GatewayIntentBits } from 'discord.js';
 import dotenv from 'dotenv';
+import { execSync } from 'child_process';
+import { existsSync } from 'fs';
 
 async function getWebhookName(botName) {
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   try {
     // Load bot's environment
-    dotenv.config({ path: `.env.${botName}` });
+    // Resolve agent home directory
+    const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                    execSync(`echo ~${botName}`).toString().trim();
+    const envPath = `${homeDir}/.env`;
+
+    if (!existsSync(envPath)) {
+      throw new Error(`Environment file not found: ${envPath}`);
+    }
+
+process.env.DOTENV_CONFIG_QUIET = 'true';
+    dotenv.config({ path: envPath, quiet: true });
 
     if (!process.env.DISCORD_TOKEN || !process.env.WEBHOOK_ID) {
       throw new Error('DISCORD_TOKEN or WEBHOOK_ID not found in env file');

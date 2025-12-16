@@ -6,7 +6,8 @@
  */
 
 import { Client, GatewayIntentBits } from 'discord.js';
-import fs from 'fs';
+import { execSync } from 'child_process';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 
 const BOTS = [
   { name: 'test-agent', displayName: 'Test Agent', webhookName: 'Test Agent' }
@@ -19,7 +20,15 @@ async function fixWebhooks(channelId) {
   
   try {
     // Load admin bot's token
-    const adminEnv = fs.readFileSync('.env.admin-agent', 'utf8');
+    const adminHomeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                         execSync(`echo ~admin-agent`).toString().trim();
+    const adminEnvPath = `${adminHomeDir}/.env`;
+
+    if (!existsSync(adminEnvPath)) {
+      throw new Error(`Admin environment file not found: ${adminEnvPath}`);
+    }
+
+    const adminEnv = readFileSync(adminEnvPath, 'utf8');
     const tokenMatch = adminEnv.match(/DISCORD_TOKEN=(.+)/);
     await client.login(tokenMatch[1]);
     
@@ -76,13 +85,22 @@ async function fixWebhooks(channelId) {
 }
 
 async function updateEnvFile(botName, webhookData) {
-  const envPath = `.env.${botName}`;
-  let envContent = fs.readFileSync(envPath, 'utf8');
-  
+  // Resolve agent home directory
+  const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                  execSync(`echo ~${botName}`).toString().trim();
+  const envPath = `${homeDir}/.env`;
+
+  if (!existsSync(envPath)) {
+    console.error(`    ❌ Environment file not found: ${envPath}`);
+    return;
+  }
+
+  let envContent = readFileSync(envPath, 'utf8');
+
   envContent = envContent.replace(/WEBHOOK_ID=.+/, `WEBHOOK_ID=${webhookData.webhookId}`);
   envContent = envContent.replace(/WEBHOOK_TOKEN=.+/, `WEBHOOK_TOKEN=${webhookData.webhookToken}`);
-  
-  fs.writeFileSync(envPath, envContent);
+
+  writeFileSync(envPath, envContent);
   console.log(`    📝 Updated ${envPath}`);
 }
 

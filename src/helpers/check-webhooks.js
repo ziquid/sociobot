@@ -5,7 +5,8 @@
  */
 
 import { Client, GatewayIntentBits } from 'discord.js';
-import fs from 'fs';
+import { execSync } from 'child_process';
+import { readFileSync, existsSync } from 'fs';
 
 async function checkWebhooks(channelId) {
   console.log('🔍 Checking existing webhooks...');
@@ -14,9 +15,17 @@ async function checkWebhooks(channelId) {
   
   try {
     // Load admin bot's token
-    const adminEnv = fs.readFileSync('.env.admin-agent', 'utf8');
+    const adminHomeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
+                         execSync(`echo ~admin-agent`).toString().trim();
+    const adminEnvPath = `${adminHomeDir}/.env`;
+
+    if (!existsSync(adminEnvPath)) {
+      throw new Error(`Admin environment file not found: ${adminEnvPath}`);
+    }
+
+    const adminEnv = readFileSync(adminEnvPath, 'utf8');
     const tokenMatch = adminEnv.match(/DISCORD_TOKEN=(.+)/);
-    
+
     await client.login(tokenMatch[1]);
     console.log('✅ Connected to Discord');
     
