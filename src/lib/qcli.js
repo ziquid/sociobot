@@ -1,11 +1,44 @@
 import { spawn, execSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdtempSync, rmdirSync, appendFileSync, mkdirSync, createWriteStream } from "fs";
-import { tmpdir } from "os";
+import { tmpdir, homedir } from "os";
 import { join } from "path";
 import { ChannelType } from "discord.js";
 import https from "https";
 import http from "http";
 import { getACL, getMaxACL, addCourtesyMessage } from "./metadata.js";
+
+/**
+ * Expand tilde in path to home directory
+ * Supports ~, ~/path, and ~username/path
+ */
+function expandTilde(filePath) {
+  if (!filePath.startsWith('~')) {
+    return filePath;
+  }
+
+  // Handle ~ or ~/path (current user)
+  if (filePath === '~' || filePath.startsWith('~/')) {
+    return filePath.replace('~', homedir());
+  }
+
+  // Handle ~username/path (other users)
+  const match = filePath.match(/^~([^/]+)(\/.*)?$/);
+  if (match) {
+    const username = match[1];
+    const restOfPath = match[2] || '';
+
+    try {
+      // Use shell to expand ~username
+      const expandedHome = execSync(`eval echo ~${username}`, { encoding: 'utf-8' }).trim();
+      return expandedHome + restOfPath;
+    } catch (error) {
+      // If expansion fails, return original path
+      return filePath;
+    }
+  }
+
+  return filePath;
+}
 
 // Convert Discord mentions and channel references to readable names
 function convertMentions(content, client) {
@@ -28,8 +61,8 @@ function convertMentions(content, client) {
 
 // Download attachment to bot's Downloads directory
 async function downloadAttachment(url, filename, agentName) {
-  const agentWorkingDir = `/Users/joseph/Documents/ZDS-Agents/${agentName}`;
-  const downloadsDir = join(agentWorkingDir, 'Downloads');
+  const agentHome = expandTilde(`~${agentName}`);
+  const downloadsDir = join(agentHome, 'Downloads');
 
   // Create Downloads directory if it doesn't exist
   if (!existsSync(downloadsDir)) {
@@ -223,9 +256,9 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageTim
   }
 
   return new Promise((resolve) => {
-    const agentWorkingDir = `/Users/joseph/Documents/ZDS-Agents/${agentName}`;
+    const agentHome = expandTilde(`~${agentName}`);
     const qcli = spawn('zai', [messageSource, agentName], {
-      cwd: agentWorkingDir,
+      cwd: agentHome,
       env,
     });
     let output = '';
