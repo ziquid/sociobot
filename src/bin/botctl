@@ -18,8 +18,6 @@ if [[ "$1" == "--version" || "$1" == "-v" ]]; then
   exit 0
 fi
 
-BOT_DIR=~/sca/sociobot
-
 # Get all agents and filter to only those with Discord credentials
 ALL_AGENTS=($(zai lc))
 BOTS=()
@@ -37,15 +35,6 @@ MONITORING=true
 
 # Log command invocation
 logger -p user.info "sociobot: Command invoked: $0 $*"
-
-# Change to bot directory
-cd "$BOT_DIR" || {
-  echo "Error: Cannot change to bot directory: $BOT_DIR" >&2
-  logger -p user.error "sociobot: Fatal Error: Failed to change to directory $BOT_DIR"
-  exit 1
-}
-
-
 
 # Handle interruption signals
 trap 'die 130 "Interrupted by user (Ctrl+C)"' SIGINT

@@ -22,6 +22,40 @@ Sociobot is a Discord bot framework that allows you to run multiple AI agent bot
 npm install sociobot
 ```
 
+## Dependencies
+
+Sociobot requires the following system-level dependencies for full functionality:
+
+### Audio Transcription (extract-text)
+
+**OpenAI Whisper** -- Required for extracting text from audio files (MP3, WAV, M4A, etc.)
+
+```sh
+# Install via pipx (recommended)
+pipx install openai-whisper
+
+# Or via pip in a virtual environment
+python3 -m venv ~/venv/whisper
+~/venv/whisper/bin/pip install openai-whisper
+```
+
+### Image OCR (extract-text)
+
+**macOS:**
+```sh
+# textra (macOS-only tool)
+# Installation method depends on your setup
+```
+
+**Linux:**
+```sh
+# Debian/Ubuntu
+sudo apt install tesseract-ocr
+
+# RHEL/CentOS/Fedora
+sudo yum install tesseract
+```
+
 ## Configuration
 
 Each bot requires its own `~<agent-name>/.env` file with the following variables:
