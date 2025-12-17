@@ -22,7 +22,7 @@ Each bot now has its own dedicated webhook for proper message isolation.
 - **Webhook ID:** `<webhook-id>`
 - **Webhook Token:** `<webhook-token>`
 - **Webhook URL:** `https://discord.com/api/webhooks/<webhook-id>/<webhook-token>`
-- **Config File:** `.env.<bot-name>`
+- **Config File:** `~<bot-name>/.env`
 
 
 ## Maintenance Instructions
@@ -40,7 +40,7 @@ node create-webhooks.js <channel-id>
 ### To Verify Webhook Configuration:
 ```bash
 # Check each bot's .env file
-cat .env.<bot-name> | grep WEBHOOK
+cat ~<bot-name>/.env | grep WEBHOOK
 ```
 
 ## Security Notes

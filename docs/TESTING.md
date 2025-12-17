@@ -105,7 +105,7 @@ node list-roles.js <agent-name> <guild-id>
 
 ## Environment Setup for Testing
 
-Each test script requires agent-specific `.env.<agent-name>` file:
+Each test script requires agent-specific `~<agent-name>/.env` file:
 ```
 DISCORD_TOKEN=your_bot_token
 BOT_USER_ID=your_bot_user_id

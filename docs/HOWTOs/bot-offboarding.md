@@ -38,14 +38,14 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
          ```aiignore
          claude-agents/fred/settings.json:8:            "command": "echo You are Fred, a frontend specialist. Focus on UI/UX design, React components, CSS styling, user experience, accessibility, and client-side architecture. You excel at creating intuitive interfaces and smooth user interactions."
          ```
-      1. Check bot config file exists (`.env.<bot-name>`)
+      1. Check bot config file exists (`~<bot-name>/.env`)
          ```zsh
          BOT_NAME=<bot-name> # e.g.: john
-         ls .env.$BOT_NAME
+         ls ~$BOT_NAME/.env
          ```
          Expected:
          ```
-         .env.john
+         ~john/.env
          ```
       1. Check Discord bot name
          ```zsh
@@ -90,12 +90,12 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
          Expected: `✅ All bots stopped`
       1. verify bot config file exists
          ```
-         ls .env.john
+         ls ~john/.env
          ```
-         Expected: `.env.john`
+         Expected: `~john/.env`
       1. rename bot config to mark as inactive
          ```
-         mv .env.john .env.john.fired
+         mv ~john/.env ~john/.env.fired
          ```
          Expected: File renamed successfully
       1. remove bot from bot list
@@ -189,14 +189,14 @@ This guide covers the complete process for safely removing a bot from the ZDS AI
          ```
          cp -r data/logs/*john* archives/john-$(date +%Y%m%d)/logs/
          cp -r data/persistence/*john* archives/john-$(date +%Y%m%d)/persistence/
-         cp .env.john.fired archives/john-$(date +%Y%m%d)/config/
+         cp ~john/.env.fired archives/john-$(date +%Y%m%d)/config/
          ```
          Expected: Files copied successfully
       1. Remove bot files from system
          ```
          rm -f data/logs/*john*
          rm -f data/persistence/*john*
-         rm -f .env.john.fired
+         rm -f ~john/.env.fired
          ```
          Expected: Files removed successfully
       1. Create compressed archive for requestor

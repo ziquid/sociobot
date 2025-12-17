@@ -117,6 +117,8 @@ const EMOJI_MAP = {
   'thinking': '🤔',
   'tada': '🎉',
   'rocket': '🚀',
+  'ship': '🚢',
+  'cruise_ship': '🛳️',
   'star': '⭐',
   'check': '✅',
   'x': '❌',

@@ -66,7 +66,7 @@ This guide covers everything needed to onboard a new Discord bot to the ZDS AI s
 ## Step 3: Create Bot Environment
 
 ### 3.1 Create Environment File
-Create `.env.<bot-name>` file:
+Create `~<bot-name>/.env` file:
 
 ```bash
 # Discord Configuration
@@ -90,10 +90,7 @@ HTTP_PORT=
 ### 3.2 Secure Environment File
 ```bash
 # Set proper permissions
-chmod 600 .env.<bot-name>
-
-# Verify .env files are in .gitignore
-echo ".env.*" >> .gitignore
+chmod 600 ~<bot-name>/.env
 ```
 
 ## Step 4: Create Webhooks
@@ -106,7 +103,7 @@ node create-webhooks.js <channel-id>
 
 ### 4.2 Update Environment File
 1. Copy webhook ID and token from output
-2. Update `.env.<bot-name>` file:
+2. Update `~<bot-name>/.env` file:
    ```bash
    WEBHOOK_ID=webhook_id_from_output
    WEBHOOK_TOKEN=webhook_token_from_output

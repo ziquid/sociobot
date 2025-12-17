@@ -24,7 +24,7 @@ npm install sociobot
 
 ## Configuration
 
-Each bot requires its own `.env.<agent-name>` file with the following variables:
+Each bot requires its own `~<agent-name>/.env` file with the following variables:
 
 ```
 # Discord Configuration

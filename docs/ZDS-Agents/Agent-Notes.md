@@ -24,7 +24,7 @@
 ### Discord API
 - Bot application info: `curl -s -H "Authorization: Bot $DISCORD_TOKEN" https://discord.com/api/v10/applications/@me | jq -r '.name'`
 - Webhook info: `curl -s https://discord.com/api/v10/webhooks/$WEBHOOK_ID/$WEBHOOK_TOKEN`
-- Must source .env file before using variables: `source .env.<bot-name> &&`
+- Must source .env file before using variables: `source ~<bot-name>/.env &&`
 
 ### Validation Process
 - Always validate agent name → bot name mapping before destructive actions

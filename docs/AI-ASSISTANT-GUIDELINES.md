@@ -38,7 +38,7 @@
 - `.gitignore` updates
 
 ### What NOT to Commit
-- Configuration files (`.env.*`, `data/servers/*.json`)
+- Configuration files (`~<agent>/.env`, `data/servers/*.json`)
 - Credentials or tokens
 - PII (Personally Identifiable Information)
 - Server-specific settings
@@ -108,7 +108,7 @@
 - Load server configs from `data/servers/{guildId}.json`
 
 ### Environment Variables
-- Agent-specific settings go in `.env.{agentName}`
+- Agent-specific settings go in `~<agentName>/.env`
 - Server-specific settings go in config files, not env vars
 - Document new env vars in `.env.example` when appropriate
 

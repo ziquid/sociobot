@@ -119,10 +119,10 @@
 
 ## Step 3: Create Bot Environment
 ### 3.1 Create Environment File (bot or user)
-- [ ] Create `.env.<bot-name>` file with specified content
+- [ ] Create `~<bot-name>/.env` file with specified content
 
 ### 3.2 Secure Environment File (bot or user)
-- [ ] Set proper permissions: `chmod 600 .env.<bot-name>`
+- [ ] Set proper permissions: `chmod 600 ~<bot-name>/.env`
 - [ ] Verify `.env.*` files are in `.gitignore`
 
 ## Step 4: Create Webhooks
@@ -140,12 +140,12 @@
   - Re-run `node create-webhooks.js <channel-id> <bot-name>`
 
 ### 4.2 Update Environment File (bot or user)
-- [ ] Webhook ID and token automatically updated in `.env.<bot-name>` by script
+- [ ] Webhook ID and token automatically updated in `~<bot-name>/.env` by script
 
 ### 4.3 Configure DM Channel (user)
 - [ ] Send DM to bot in Discord (creates DM channel)
 - [ ] Right-click DM channel in Discord UI → Copy Channel ID
-- [ ] Provide channel ID to bot to add to `.env.<bot-name>` in `DM_CHANNEL_IDS=` field
+- [ ] Provide channel ID to bot to add to `~<bot-name>/.env` in `DM_CHANNEL_IDS=` field
 
 ## Step 5: Role Management
 ### 5.1 Assign Shared Role (bot or user)
