@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
 import { Client, GatewayIntentBits } from 'discord.js';
-import dotenv from 'dotenv';
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { getConfig } from '../lib/config.js';
 import { sendChannelMessage, sendWebhookMessage } from '../lib/message-utils.js';
 
 // Usage: node send-message.js <agent-name> <channel-id-or-name> "message text"
@@ -27,23 +25,8 @@ if (!agentName || !target) {
   process.exit(1);
 }
 
-// Resolve agent home directory
-const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
-                execSync(`echo ~${agentName}`).toString().trim();
-const envPath = `${homeDir}/.env`;
-
-if (!existsSync(envPath)) {
-  console.error(`Error: Environment file not found: ${envPath}`);
-  process.exit(1);
-}
-
-process.env.DOTENV_CONFIG_QUIET = 'true';
-dotenv.config({ path: envPath, quiet: true });
-
-if (!process.env.DISCORD_TOKEN) {
-  console.error(`Error: No DISCORD_TOKEN found in ${envPath}`);
-  process.exit(1);
-}
+// Load configuration
+const config = getConfig(agentName);
 
 const client = new Client({
   intents: [
@@ -97,11 +80,11 @@ client.once('clientReady', async () => {
         process.exit(1);
       }
 
-      const webhookId = process.env.WEBHOOK_ID;
-      const webhookToken = process.env.WEBHOOK_TOKEN;
+      const webhookId = config.discord.guild.ziquid.webhook.id;
+      const webhookToken = config.discord.guild.ziquid.webhook.token;
 
       if (!webhookId || !webhookToken) {
-        console.error('Error: WEBHOOK_ID and WEBHOOK_TOKEN required for webhook messages');
+        console.error('Error: Webhook ID and token required for webhook messages');
         process.exit(1);
       }
 
@@ -135,4 +118,4 @@ client.once('clientReady', async () => {
   process.exit(0);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(config.discord.token);

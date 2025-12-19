@@ -5,33 +5,17 @@
  */
 
 import { Client, GatewayIntentBits } from 'discord.js';
-import dotenv from 'dotenv';
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { getConfig } from '../lib/config.js';
 
 async function getWebhookName(botName) {
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   try {
-    // Load bot's environment
-    // Resolve agent home directory
-    const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
-                    execSync(`echo ~${botName}`).toString().trim();
-    const envPath = `${homeDir}/.env`;
+    // Load configuration
+    const config = getConfig(botName);
 
-    if (!existsSync(envPath)) {
-      throw new Error(`Environment file not found: ${envPath}`);
-    }
-
-process.env.DOTENV_CONFIG_QUIET = 'true';
-    dotenv.config({ path: envPath, quiet: true });
-
-    if (!process.env.DISCORD_TOKEN || !process.env.WEBHOOK_ID) {
-      throw new Error('DISCORD_TOKEN or WEBHOOK_ID not found in env file');
-    }
-
-    await client.login(process.env.DISCORD_TOKEN);
-    const webhook = await client.fetchWebhook(process.env.WEBHOOK_ID);
+    await client.login(config.discord.token);
+    const webhook = await client.fetchWebhook(config.discord.guild.ziquid.webhook.id);
     console.log(webhook.name);
 
   } catch (error) {

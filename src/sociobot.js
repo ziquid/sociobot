@@ -29,26 +29,18 @@ if (!agentName) {
   process.exit(1);
 }
 
-import dotenv from 'dotenv';
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+// Load configuration
+import { getConfig } from "./lib/config.js";
+const config = getConfig(agentName);
 
-// Resolve agent home directory
-const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
-                execSync(`echo ~${agentName}`).toString().trim();
-const envPath = `${homeDir}/.env`;
-
-if (!existsSync(envPath)) {
-  console.error(`Error: Environment file not found: ${envPath}`);
-  process.exit(1);
+// Set MAX_ACL environment variable for metadata.js compatibility
+if (config.maxAcl !== undefined) {
+  process.env.MAX_ACL = String(config.maxAcl);
 }
 
-process.env.DOTENV_CONFIG_QUIET = 'true';
-dotenv.config({ path: envPath, quiet: true });
-
-// Validate environment variables
+// Validate configuration
 import { validEnvironment } from "./lib/validation.js";
-if (!validEnvironment()) {
+if (!validEnvironment(agentName)) {
   process.exit(1);
 }
 
@@ -56,7 +48,6 @@ import { Client, Events, GatewayIntentBits, ChannelType, Partials } from "discor
 
 import { loadLastProcessedMessages, saveLastProcessedMessage } from "./lib/persistence.js";
 import { processBatchedMessages, processRealtimeMessage, log, encodeSpeech } from "./lib/qcli.js";
-import { startHttpServer } from "./lib/http-server.js";
 import { setupErrorHandlers } from "./lib/error-handlers.js";
 import { sendLongMessage, stripThinkTags } from "./lib/message-utils.js";
 import { getACL, getMaxACL, addCourtesyMessage } from "./lib/metadata.js";
@@ -71,11 +62,10 @@ import {
 } from "./lib/message-processing.js";
 import { checkLoadAverage } from "./lib/system-utils.js";
 
-// Environment variables
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+// Configuration constants
+const DISCORD_TOKEN = config.discord.token;
 const AGENT_NAME = agentName;
-const HTTP_PORT = process.env.HTTP_PORT;
-const BOT_MESSAGE_DELAY = parseInt(process.env.BOT_MESSAGE_DELAY) || 17000; // Default 17 seconds
+const BOT_MESSAGE_DELAY = config.messageDelay;
 const BOT_DMS_CHANNEL_ID = '1418032549430558782'; // Special channel for bot-to-bot communication
 
 // Bot responds to all messages in channels where it has ViewChannel permission
@@ -348,9 +338,9 @@ async function getDMChannels(readyClient) {
     if (DEBUG) log(`Added cached DM channel ${id} with ${channel.recipient?.tag}`);
   }
 
-  // Get DM channel IDs from environment
-  const knownDMChannels = process.env.DM_CHANNEL_IDS?.split(',') || [];
-  if (DEBUG) log(`Environment DM_CHANNEL_IDS: ${knownDMChannels.join(', ')}`);
+  // Get DM channel IDs from configuration
+  const knownDMChannels = config.discord.dmChannelIds;
+  if (DEBUG) log(`Configuration DM channel IDs: ${knownDMChannels.join(', ')}`);
 
   for (const channelId of knownDMChannels) {
     if (DEBUG) log(`Checking DM channel ${channelId}`);
@@ -798,7 +788,7 @@ async function handleLowPriorityMessage(message) {
 async function handleRealtimeMessage(message) {
   // Circuit breaker - stop if failing repeatedly
   if (circuitBreakerState.consecutiveFailures >= MAX_FAILURES) {
-    log(`Circuit breaker: ${circuitBreakerState.consecutiveFailures} failures - exiting`);
+    log(`Circuit breaker: ${circuitBreakerState.consecutiveFailures} failures, exiting`);
     process.exit(1);
   }
 
@@ -849,7 +839,7 @@ async function handleRealtimeMessage(message) {
 
     if (query || message.attachments.size > 0) {
       if (NO_AGENT) {
-        log(`Real-time message skipped - agent processing disabled (--no-agent)`);
+        log(`Real-time message skipped, agent processing disabled (--no-agent)`);
         return;
       }
 
@@ -862,7 +852,7 @@ async function handleRealtimeMessage(message) {
 
         // Check for NO_RESPONSE directive
         if (responseText === 'NO_RESPONSE') {
-          log(`Agent returned NO_RESPONSE - skipping Discord reply for message ${message.id}`);
+          log(`Agent returned NO_RESPONSE, skipping Discord reply for message ${message.id}`);
           saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
           return;
         }
@@ -874,7 +864,7 @@ async function handleRealtimeMessage(message) {
           emoji = emoji.replace(/^:|:$/g, '');
           // Map common emoji names to Unicode
           emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
-          log(`Agent returned REACTION directive - reacting to message ${message.id} with ${emoji}`);
+          log(`Agent returned REACTION directive, reacting to message ${message.id} with ${emoji}`);
           try {
             await message.react(emoji);
             log(`Reaction SUCCESS for message ${message.id}: ${emoji}`);
@@ -920,7 +910,7 @@ async function handleRealtimeMessage(message) {
           }
         }
       } else if (result && NO_DISCORD) {
-        log(`Real-time response generated - Discord response skipped`);
+        log(`Real-time response generated, Discord response skipped`);
       }
     }
   }
@@ -1001,9 +991,6 @@ client.once(Events.ClientReady, async (readyClient) => {
 
   startupComplete = true;
   log('Bot initialization complete, monitoring for new messages...');
-  if (HTTP_PORT) {
-    log(`HTTP server available at http://localhost:${HTTP_PORT}/dms`);
-  }
 
   // Process queued messages
   while (messageQueue.length > 0) {
@@ -1102,12 +1089,6 @@ This message is for your information only. Do not reply -- replies to this messa
 
 // Setup error handlers
 setupErrorHandlers(client, log);
-
-// Start HTTP server if configured
-if (HTTP_PORT) {
-  startHttpServer(client, HTTP_PORT, log);
-}
-
 
 // Check load every 30 seconds
 setInterval(() => checkLoadAverage(MAX_LOAD_AVERAGE, log), 30000);

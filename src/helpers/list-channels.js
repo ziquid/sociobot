@@ -5,11 +5,9 @@
  * Usage: node list-channels.js <agent-name>
  */
 
-import dotenv from 'dotenv';
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
 import { Client, Events, GatewayIntentBits, ChannelType } from "discord.js";
 import { loadLastProcessedMessages } from "../lib/persistence.js";
+import { getConfig } from "../lib/config.js";
 
 const agentName = process.argv[2];
 const DISCOVER_DMS = process.argv.includes('--discover-dms');
@@ -23,25 +21,9 @@ if (!agentName) {
   process.exit(1);
 }
 
-// Resolve agent home directory
-const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
-                execSync(`echo ~${agentName}`).toString().trim();
-const envPath = `${homeDir}/.env`;
-
-if (!existsSync(envPath)) {
-  console.error(`Error: Environment file not found: ${envPath}`);
-  process.exit(1);
-}
-
-process.env.DOTENV_CONFIG_QUIET = 'true';
-dotenv.config({ path: envPath, quiet: true });
-
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-
-if (!DISCORD_TOKEN) {
-  console.error(`Error: DISCORD_TOKEN not found in ${envPath}`);
-  process.exit(1);
-}
+// Load configuration
+const config = getConfig(agentName);
+const DISCORD_TOKEN = config.discord.token;
 
 const client = new Client({
   intents: [
@@ -127,8 +109,8 @@ client.once(Events.ClientReady, async (readyClient) => {
     dmChannels.set(id, channel);
   }
   
-  // Fetch DM channels from environment
-  const knownDMChannels = process.env.DM_CHANNEL_IDS?.split(',') || [];
+  // Fetch DM channels from configuration
+  const knownDMChannels = config.discord.dmChannelIds;
   for (const channelId of knownDMChannels) {
     if (!dmChannels.has(channelId)) {
       try {
