@@ -5,13 +5,13 @@ import { join } from "path";
 import { ChannelType } from "discord.js";
 import https from "https";
 import http from "http";
-import { getACL, getMaxACL, addCourtesyMessage } from "./metadata.js";
+import { getACL, getMaxACL, addResponseGuidance } from "./metadata.js";
 
 /**
  * Expand tilde in path to home directory
  * Supports ~, ~/path, and ~username/path
  */
-function expandTilde(filePath) {
+export function expandTilde(filePath) {
   if (!filePath.startsWith('~')) {
     return filePath;
   }
@@ -220,39 +220,51 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageTim
     members = channelMembers.map(member => member.user.username).join(',');
   }
 
-  // Get max ACL for this channel
-  const maxACL = getMaxACL(channel, debug);
-
   const env = {
     ...process.env,
     ZDS_AI_AGENT_MESSAGE_SOURCE: 'discord',
     ZDS_AI_AGENT_MESSAGE_CHANNEL: channelName,
-    ZDS_AI_AGENT_MESSAGE_AUTHOR: authorUsername,
     ZDS_AI_AGENT_MESSAGE_PRIVACY: privacy,
     ZDS_AI_AGENT_MESSAGE_SERVER: serverName,
     ZDS_AI_AGENT_MESSAGE_MEMBERS: members,
-    ZDS_AI_AGENT_MESSAGE_TIMESTAMP: messageTimestamp,
-    ZDS_AI_AGENT_MESSAGE_ACL: currentACL.toString(),
-    ZDS_AI_AGENT_MESSAGE_MAX_ACL: maxACL.toString(),
-    ZDS_AI_AGENT_RESPONSES_ACCEPTED: 'plain text',
-    ZDS_AI_AGENT_RESPONSES_FORBIDDEN: 'JSON, YML',
     ZDS_AI_AGENT_PRINT_ONLY: ''
   };
 
+  // Set response format constraints based on mode
+  if (isBatch) {
+    env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'json, NO_RESPONSE, REACTION:';
+    env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, yaml';
+  } else {
+    const maxACL = getMaxACL(channel, debug);
+    env.ZDS_AI_AGENT_MESSAGE_AUTHOR = authorUsername;
+    env.ZDS_AI_AGENT_MESSAGE_TIMESTAMP = messageTimestamp;
+    env.ZDS_AI_AGENT_MESSAGE_ACL = currentACL.toString();
+    env.ZDS_AI_AGENT_MESSAGE_MAX_ACL = maxACL.toString();
+
+    // Adjust accepted/forbidden responses based on ACL state
+    if (currentACL > maxACL) {
+      // Beyond ACL limit: only NO_RESPONSE allowed
+      env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'NO_RESPONSE';
+      env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, json, yaml, REACTION:';
+    } else if (currentACL === maxACL) {
+      // At ACL limit: reactions and NO_RESPONSE only
+      env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'NO_RESPONSE, REACTION:';
+      env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, json, yaml';
+    } else {
+      // Below ACL limit: normal responses
+      env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'text, markdown, NO_RESPONSE, REACTION:';
+      env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'json, yaml';
+    }
+  }
+
   if (debug) {
     log(`Spawning: zai ${messageSource} ${agentName}`);
-    log(`Env vars: ${JSON.stringify({
-      ZDS_AI_AGENT_MESSAGE_SOURCE: env.ZDS_AI_AGENT_MESSAGE_SOURCE,
-      ZDS_AI_AGENT_MESSAGE_CHANNEL: env.ZDS_AI_AGENT_MESSAGE_CHANNEL,
-      ZDS_AI_AGENT_MESSAGE_AUTHOR: env.ZDS_AI_AGENT_MESSAGE_AUTHOR,
-      ZDS_AI_AGENT_MESSAGE_PRIVACY: env.ZDS_AI_AGENT_MESSAGE_PRIVACY,
-      ZDS_AI_AGENT_MESSAGE_SERVER: env.ZDS_AI_AGENT_MESSAGE_SERVER,
-      ZDS_AI_AGENT_MESSAGE_MEMBERS: env.ZDS_AI_AGENT_MESSAGE_MEMBERS,
-      ZDS_AI_AGENT_MESSAGE_ACL: env.ZDS_AI_AGENT_MESSAGE_ACL,
-      ZDS_AI_AGENT_MESSAGE_MAX_ACL: env.ZDS_AI_AGENT_MESSAGE_MAX_ACL,
-      ZDS_AI_AGENT_RESPONSES_ACCEPTED: env.ZDS_AI_AGENT_RESPONSES_ACCEPTED,
-      ZDS_AI_AGENT_RESPONSES_FORBIDDEN: env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN
-    }, null, 2)}`);
+    const debugEnv = {};
+    const agentEnvVars = Object.keys(env).filter(k => k.startsWith('ZDS_AI_AGENT_'));
+    for (const key of agentEnvVars) {
+      debugEnv[key] = env[key];
+    }
+    log(`Env vars: ${JSON.stringify(debugEnv, null, 2)}`);
   }
 
   return new Promise((resolve) => {
@@ -366,7 +378,7 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
     // Get current ACL from message and check against agent's max ACL
     const currentACL = getACL(message);
     const maxACL = getMaxACL(channel, debug);
-    const wouldExceedACL = currentACL >= maxACL;
+    const wouldExceedACL = currentACL > maxACL;
     const isAtACLLimit = currentACL === maxACL;
 
     // Build query with message content
@@ -435,21 +447,8 @@ ${convertedContent}`;
       attachments_count: message.attachments.size
     });
 
-    // Add courtesy message if this message would cause response to exceed ACL
-    if (wouldExceedACL) {
-      query = addCourtesyMessage(query);
-      if (debug) {
-        log(`ACL limit would be exceeded (${currentACL} >= ${maxACL}), adding courtesy message`);
-      }
-    }
-
-    // Add special instruction if at exact ACL limit (reactions only)
-    if (isAtACLLimit) {
-      query += '\n\nNote: You are at the ACL limit. You may only respond with a REACTION (e.g., REACTION:eyes) to acknowledge this message. Text responses will be blocked.';
-      if (debug) {
-        log(`At ACL limit (${currentACL} === ${maxACL}), reactions-only mode`);
-      }
-    }
+    // Add response guidance based on ACL state
+    query = addResponseGuidance(query, currentACL, maxACL, debug);
 
     if (debug) {
       console.log('=== REALTIME QUERY ===');
@@ -480,7 +479,7 @@ ${convertedContent}`;
     }
 
     // If beyond ACL limit, block entirely
-    if (currentACL > maxACL) {
+    if (wouldExceedACL) {
       if (debug) {
         log(`Beyond ACL limit (${currentACL} > ${maxACL}), blocking response`);
       }
@@ -526,7 +525,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
       },
       messages: messages.map(msg => {
         const msgACL = getACL(msg);
-        const wouldExceedACL = msgACL >= maxACL;
+        const wouldExceedACL = msgACL > maxACL;
         const isAtACLLimit = msgACL === maxACL;
         return {
           id: msg.id,
@@ -550,13 +549,13 @@ export async function processBatchedMessages(messages, channel, agentName, debug
     // Add note about informationalOnly field
     const hasInformationalOnly = messageData.messages.some(m => m.informationalOnly);
     if (hasInformationalOnly) {
-      query += '\n\nNote: Messages with "informationalOnly": true are for your information only - do not respond to them as your response would not be delivered due to ACL limits.';
+      query += '\n\nNote: Messages with "informationalOnly": true are for your information only -- do not respond to them as your response would not be delivered due to ACL limits.';
     }
 
     // Add note about reactionsOnly field
     const hasReactionsOnly = messageData.messages.some(m => m.reactionsOnly);
     if (hasReactionsOnly) {
-      query += '\n\nNote: Messages with "reactionsOnly": true are at the ACL limit. You may only respond with a REACTION (e.g., REACTION:eyes) to acknowledge these messages. Text responses will be blocked.';
+      query += '\n\nNote: Messages with "reactionsOnly": true are at the ACL limit.  You may only respond with a REACTION (e.g., REACTION:eyes) to acknowledge these messages.  Text responses will be blocked.';
     }
 
     if (debug) {

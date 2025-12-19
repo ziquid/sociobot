@@ -5,6 +5,7 @@ import { join } from 'path';
 
 const FOOTER_SIGNATURE = "Sent by a ZDS AI Agent • zds-agents.com";
 const ACL_COURTESY_MESSAGE = "\n\nFor your information only.  Replies to this message will not be processed.";
+const ACL_REACTIONS_ONLY_MESSAGE = "\n\nNote: You are at the ACL limit.  You may only respond with a REACTION (e.g., REACTION:eyes) to acknowledge this message.  Text responses will be blocked.";
 
 /**
  * Load server configuration
@@ -75,12 +76,26 @@ export function getACL(message) {
 }
 
 /**
- * Add courtesy message to query
+ * Add response guidance to query based on current ACL state
  * @param {string} query - Original query content
- * @returns {string} - Query with courtesy message
+ * @param {number} currentACL - Current ACL value
+ * @param {number} maxACL - Maximum ACL allowed
+ * @param {boolean} debug - Enable debug logging
+ * @returns {string} - Query with appropriate response guidance
  */
-export function addCourtesyMessage(query) {
-  return query + ACL_COURTESY_MESSAGE;
+export function addResponseGuidance(query, currentACL, maxACL, debug = false) {
+  if (currentACL === maxACL) {
+    if (debug) {
+      console.log(`At ACL limit (${currentACL} === ${maxACL}), adding reactions-only message`);
+    }
+    return query + ACL_REACTIONS_ONLY_MESSAGE;
+  } else if (currentACL > maxACL) {
+    if (debug) {
+      console.log(`Beyond ACL limit (${currentACL} > ${maxACL}), adding courtesy message`);
+    }
+    return query + ACL_COURTESY_MESSAGE;
+  }
+  return query;
 }
 
 /**

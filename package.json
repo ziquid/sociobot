@@ -1,6 +1,6 @@
 {
   "name": "sociobot",
-  "version": "0.0.4-alpha.7",
+  "version": "0.0.6",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
   "main": "src/sociobot.js",
   "type": "module",
@@ -38,6 +38,7 @@
   "license": "MIT",
   "dependencies": {
     "discord.js": "^14.22.1",
-    "dotenv": "^17.2.2"
+    "dotenv": "^17.2.2",
+    "js-yaml": "^4.1.0"
   }
 }
