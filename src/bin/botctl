@@ -5,24 +5,25 @@
 # set -x
 
 # Check for version option
-if [[ "$1" == "--version" || "$1" == "-v" ]]; then
+if [[ "$1" == --version || "$1" == -v ]]; then
   # Find package.json by resolving the script's location
   SCRIPT_PATH="${0:A}"
   PACKAGE_DIR="${SCRIPT_PATH:h:h:h}"
-  if [[ -f "$PACKAGE_DIR/package.json" ]]; then
+  if [[ -s "$PACKAGE_DIR/package.json" ]]; then
     jq -r '.version' "$PACKAGE_DIR/package.json"
   else
-    echo "Error: Cannot find package.json" >&2
+    echo Error: Cannot find package.json >&2
     exit 1
   fi
   exit 0
 fi
 
-# Get all agents and filter to only those with Discord credentials
+# Get all agents and filter to only those with sociobot configuration
 ALL_AGENTS=($(zai lc))
 BOTS=()
 for agent in "${ALL_AGENTS[@]}"; do
-  if [[ -f ~${agent}/.env ]]; then
+  config_file=~${agent}/.zds-ai/config.zds.yml
+  if [[ -s "$config_file" ]] && grep -q '^sociobot:' "$config_file" 2>/dev/null; then
     BOTS+=($agent)
   fi
 done
@@ -112,15 +113,18 @@ start_single_bot() {
 
   declare -r LOGS_DIR=$(zai pv "$BOT_NAME" | grep '^ZDS_AI_AGENT_LOGS_DIR=' | cut -d= -f2-)
   declare -r LOG_FILE="${LOGS_DIR}/sociobot.log"
+  declare -r CONFIG_FILE=$(zai pv "$BOT_NAME" | grep '^ZDS_AI_AGENT_CONFIG_FILE=' | cut -d= -f2-)
 
   # Start with clean environment to prevent ZDS_AI_AGENT_* variable leakage
-  # Only pass through essential system variables
+  # Only pass through essential system variables and config file path
   if [[ "$DEBUG_FLAG" == --debug ]]; then
     log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
+      ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       nohup sociobot "$BOT_NAME" --debug >> "$LOG_FILE" 2>&1 &
   else
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
+      ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       nohup sociobot "$BOT_NAME" >> "$LOG_FILE" 2>&1 &
   fi
 

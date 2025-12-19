@@ -50,7 +50,7 @@ import { loadLastProcessedMessages, saveLastProcessedMessage } from "./lib/persi
 import { processBatchedMessages, processRealtimeMessage, log, encodeSpeech } from "./lib/qcli.js";
 import { setupErrorHandlers } from "./lib/error-handlers.js";
 import { sendLongMessage, stripThinkTags } from "./lib/message-utils.js";
-import { getACL, getMaxACL, addCourtesyMessage } from "./lib/metadata.js";
+import { getACL, getMaxACL, addResponseGuidance } from "./lib/metadata.js";
 import {
   isOwnBotMessage,
   isAfterCutoff,
@@ -131,7 +131,107 @@ const EMOJI_MAP = {
   'sob': '😭',
   'scream': '😱',
   'flushed': '😳',
-  'shrug': '🤷'
+  'shrug': '🤷',
+  'sunrise': '🌅',
+  'sunset': '🌇',
+  'sun': '☀️',
+  'moon': '🌙',
+  'cloud': '☁️',
+  'rain': '🌧️',
+  'snow': '❄️',
+  'rainbow': '🌈',
+  'two_hearts': '💕',
+  'sparkling_heart': '💖',
+  'heartbeat': '💓',
+  'heartpulse': '💗',
+  'blue_heart': '💙',
+  'green_heart': '💚',
+  'yellow_heart': '💛',
+  'purple_heart': '💜',
+  'orange_heart': '🧡',
+  'black_heart': '🖤',
+  'white_heart': '🤍',
+  'brown_heart': '🤎',
+  'broken_heart': '💔',
+  'rose': '🌹',
+  'kiss': '💋',
+  'hug': '🤗',
+  'blush': '😊',
+  'relaxed': '☺️',
+  'wink': '😉',
+  'yum': '😋',
+  'sleeping': '😴',
+  'zzz': '💤',
+  'relieved': '😌',
+  'innocent': '😇',
+  'stuck_out_tongue': '😛',
+  'stuck_out_tongue_winking_eye': '😜',
+  'stuck_out_tongue_closed_eyes': '😝',
+  'sweat_smile': '😅',
+  'pensive': '😔',
+  'confused': '😕',
+  'upside_down': '🙃',
+  'money_mouth': '🤑',
+  'nerd': '🤓',
+  'zipper_mouth': '🤐',
+  'raised_eyebrow': '🤨',
+  'exploding_head': '🤯',
+  'cowboy': '🤠',
+  'partying': '🥳',
+  'pleading': '🥺',
+  'yawn': '🥱',
+  'triumph': '😤',
+  'angry': '😠',
+  'rage': '😡',
+  'smiling_imp': '😈',
+  'skull': '💀',
+  'hankey': '💩',
+  'poop': '💩',
+  'shit': '💩',
+  'clown': '🤡',
+  'robot': '🤖',
+  'alien': '👽',
+  'ghost': '👻',
+  'ok_hand': '👌',
+  'v': '✌️',
+  'peace': '✌️',
+  'crossed_fingers': '🤞',
+  'metal': '🤘',
+  'call_me': '🤙',
+  '+1': '👍',
+  '-1': '👎',
+  'fist': '✊',
+  'facepunch': '👊',
+  'punch': '👊',
+  'left_facing_fist': '🤛',
+  'right_facing_fist': '🤜',
+  'raised_hand': '✋',
+  'palm': '🤚',
+  'ok': '🆗',
+  'sos': '🆘',
+  'no_entry': '⛔',
+  'name_badge': '📛',
+  'no_entry_sign': '🚫',
+  'heavy_check_mark': '✔️',
+  'white_check_mark': '✅',
+  'ballot_box_with_check': '☑️',
+  'heavy_multiplication_x': '✖️',
+  'x_mark': '❌',
+  'negative_squared_cross_mark': '❎',
+  'heavy_plus_sign': '➕',
+  'heavy_minus_sign': '➖',
+  'heavy_division_sign': '➗',
+  'curly_loop': '➰',
+  'loop': '➿',
+  'part_alternation_mark': '〽️',
+  'eight_spoked_asterisk': '✳️',
+  'eight_pointed_black_star': '✴️',
+  'sparkle': '❇️',
+  'bangbang': '‼️',
+  'interrobang': '⁉️',
+  'tm': '™️',
+  'copyright': '©️',
+  'registered': '®️'
 };
 
 const client = new Client({
@@ -256,7 +356,8 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
 
         // Check for REACTION directive (e.g., REACTION:thumbsup:)
         if (responseText.startsWith('REACTION:')) {
-          let emoji = responseText.substring('REACTION:'.length);
+          const lines = responseText.split('\n');
+          let emoji = lines[0].substring('REACTION:'.length).trim();
           // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
           emoji = emoji.replace(/^:|:$/g, '');
           // Map common emoji names to Unicode
@@ -268,11 +369,20 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
           } catch (error) {
             log(`Reaction FAILED for message ${response.messageId} with ${emoji}: ${error.message}`);
           }
-          if (!highestProcessedId || message.id > highestProcessedId) {
-            highestProcessedId = message.id;
+
+          // Check if there's additional text after the reaction line
+          const remainingText = lines.slice(1).join('\n').trim();
+          if (remainingText) {
+            // Process the text portion
+            responseText = remainingText;
+          } else {
+            // Only reaction, no text
+            if (!highestProcessedId || message.id > highestProcessedId) {
+              highestProcessedId = message.id;
+            }
+            saveLastProcessedMessage(AGENT_NAME, channel.id, message.id);
+            continue;
           }
-          saveLastProcessedMessage(AGENT_NAME, channel.id, message.id);
-          continue;
         }
 
         // If ACL limited and not a REACTION, block the text response
@@ -471,7 +581,8 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
 
             // Check for REACTION directive (e.g., REACTION:thumbsup:)
             if (responseText.startsWith('REACTION:')) {
-              let emoji = responseText.substring('REACTION:'.length);
+              const lines = responseText.split('\n');
+              let emoji = lines[0].substring('REACTION:'.length).trim();
               // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
               emoji = emoji.replace(/^:|:$/g, '');
               // Map common emoji names to Unicode
@@ -483,11 +594,20 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
               } catch (error) {
                 log(`Reaction FAILED for bot-dms message ${response.messageId} with ${emoji}: ${error.message}`);
               }
-              if (!highestProcessedId || message.id > highestProcessedId) {
-                highestProcessedId = message.id;
+
+              // Check if there's additional text after the reaction line
+              const remainingText = lines.slice(1).join('\n').trim();
+              if (remainingText) {
+                // Process the text portion
+                responseText = remainingText;
+              } else {
+                // Only reaction, no text
+                if (!highestProcessedId || message.id > highestProcessedId) {
+                  highestProcessedId = message.id;
+                }
+                saveLastProcessedMessage(AGENT_NAME, BOT_DMS_CHANNEL_ID, message.id);
+                continue;
               }
-              saveLastProcessedMessage(AGENT_NAME, BOT_DMS_CHANNEL_ID, message.id);
-              continue;
             }
 
             if (isErrorResponse(responseText)) {
@@ -859,7 +979,8 @@ async function handleRealtimeMessage(message) {
 
         // Check for REACTION directive (e.g., REACTION:thumbsup:)
         if (responseText.startsWith('REACTION:')) {
-          let emoji = responseText.substring('REACTION:'.length);
+          const lines = responseText.split('\n');
+          let emoji = lines[0].substring('REACTION:'.length).trim();
           // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
           emoji = emoji.replace(/^:|:$/g, '');
           // Map common emoji names to Unicode
@@ -871,8 +992,17 @@ async function handleRealtimeMessage(message) {
           } catch (error) {
             log(`Reaction FAILED for message ${message.id} with ${emoji}: ${error.message}`);
           }
-          saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
-          return;
+
+          // Check if there's additional text after the reaction line
+          const remainingText = lines.slice(1).join('\n').trim();
+          if (remainingText) {
+            // Process the text portion
+            responseText = remainingText;
+          } else {
+            // Only reaction, no text
+            saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
+            return;
+          }
         }
 
         // If ACL limited and not a REACTION, block the text response

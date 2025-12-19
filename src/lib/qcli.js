@@ -571,16 +571,29 @@ export async function processBatchedMessages(messages, channel, agentName, debug
 
     // For batch processing, ACL is included per-message in the JSON file
     // Use 'batch' as a marker value for the environment variable
-    await executeQCLI(query, agentName, 'batch', channel, new Date().toLocaleString(), 'batch', true, debug);
+    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date().toLocaleString(), 'batch', true, debug);
 
     log(`Checking for output file: ${outputFile}`);
     log(`Output file exists: ${existsSync(outputFile)}`);
 
-    // Try to read response file
+    // Try to read response file, fallback to stdout if file is missing/empty
     let result = [];
     try {
+      let responseContent = null;
+
       if (existsSync(outputFile)) {
-        const responseContent = readFileSync(outputFile, 'utf8');
+        responseContent = readFileSync(outputFile, 'utf8').trim();
+      }
+
+      // If file is missing or empty, use stdout response instead
+      if (!responseContent && stdoutResponse) {
+        responseContent = stdoutResponse.trim();
+        if (debug) {
+          log('Output file missing or empty, using stdout response instead');
+        }
+      }
+
+      if (responseContent) {
         if (debug) {
           console.log('=== AGENT JSON RESPONSE ===');
           console.log(responseContent);
@@ -624,7 +637,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
           log(`Filtered ${responsesArray.length - result.length} responses to informationalOnly messages`);
         }
       } else {
-        log('No output file created by agent');
+        log('No response from agent (file and stdout both empty)');
       }
     } catch (error) {
       log(`Error reading response file: ${error.message}`);
