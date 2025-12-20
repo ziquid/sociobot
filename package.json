@@ -1,11 +1,12 @@
 {
   "name": "sociobot",
-  "version": "0.0.9-alpha.5",
+  "version": "0.0.9",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
   "main": "src/sociobot.js",
   "type": "module",
   "bin": {
     "botctl": "src/bin/botctl",
+    "extract-text": "src/bin/extract-text",
     "sociobot": "src/sociobot.js"
   },
   "scripts": {
