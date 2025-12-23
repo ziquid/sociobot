@@ -13,7 +13,8 @@ const ACL_REACTIONS_ONLY_MESSAGE = "\n\nNote: You are at the ACL limit.  You may
  * @returns {Object|null} Server config or null
  */
 function loadServerConfig(guildId) {
-  const configPath = join(process.cwd(), 'data', 'servers', `${guildId}.json`);
+  const zdsAiRoot = process.env.ZDS_AI_ROOT || '/usr/local/share/zds-ai';
+  const configPath = join(zdsAiRoot, 'data', 'sociobot', 'servers', `${guildId}.json`);
   if (!existsSync(configPath)) return null;
   try {
     return JSON.parse(readFileSync(configPath, 'utf8'));
@@ -34,17 +35,18 @@ export function getMaxACL(channel, debug = false) {
   if (process.env.MAX_ACL) {
     const agentMaxACL = parseInt(process.env.MAX_ACL);
     if (!isNaN(agentMaxACL) && agentMaxACL > 0) {
-      if (debug) {
-        console.log(`[getMaxACL] Using agent-specific MAX_ACL: ${agentMaxACL}`);
-      }
       return agentMaxACL;
     }
   }
 
-  if (!channel.guild) return 3; // Default for DMs
+  if (!channel.guild) {
+    return 1;
+  }
 
   const serverConfig = loadServerConfig(channel.guild.id);
-  if (!serverConfig?.zdsAiAgentsRoleId) return 3; // Default if no config
+  if (!serverConfig?.zdsAiAgentsRoleId) {
+    return 1;
+  }
 
   const zdsBotCount = channel.guild.members.cache.filter(member => {
     if (!member.user.bot) return false;
@@ -53,9 +55,6 @@ export function getMaxACL(channel, debug = false) {
   }).size;
 
   const maxACL = Math.max(1, 6 - zdsBotCount);
-  if (debug) {
-    console.log(`[getMaxACL] Guild: ${channel.guild.name}, ZDS bots: ${zdsBotCount}, maxACL: ${maxACL}`);
-  }
   return maxACL;
 }
 

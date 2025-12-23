@@ -281,7 +281,15 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageTim
       qcli.kill('SIGTERM');
       activeProcesses--;
       log(`Q CLI process timed out after ${timeoutDuration/1000}s`);
-      resolve(null);
+
+      // If we have stdout but no stderr, send partial response with a note
+      if (output.trim() && !errorOutput.trim()) {
+        const partialResponse = output.trim() + '\n\n_[Note: Response may be incomplete - sociobot timeout occurred]_';
+        log(`Sending partial response despite timeout (${output.length} chars)`);
+        resolve(partialResponse);
+      } else {
+        resolve(null);
+      }
     }, timeoutDuration);
 
     qcli.stdout.on('data', (data) => output += data);
