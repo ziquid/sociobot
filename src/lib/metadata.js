@@ -25,20 +25,12 @@ function loadServerConfig(guildId) {
 
 /**
  * Calculate maximum ACL based on number of ZDS bots in channel
- * Can be overridden by MAX_ACL environment variable for per-agent limits
+ * Can be lowered by MAX_ACL environment variable for per-agent limits
  * @param {Object} channel - Discord channel object
  * @param {boolean} debug - Enable debug logging
  * @returns {number} Maximum ACL allowed
  */
 export function getMaxACL(channel, debug = false) {
-  // Check for per-agent ACL limit override
-  if (process.env.MAX_ACL) {
-    const agentMaxACL = parseInt(process.env.MAX_ACL);
-    if (!isNaN(agentMaxACL) && agentMaxACL > 0) {
-      return agentMaxACL;
-    }
-  }
-
   if (!channel.guild) {
     return 1;
   }
@@ -54,8 +46,17 @@ export function getMaxACL(channel, debug = false) {
     return channel.permissionsFor(member)?.has('ViewChannel');
   }).size;
 
-  const maxACL = Math.max(1, 6 - zdsBotCount);
-  return maxACL;
+  const calculatedMaxACL = Math.max(1, 5 - zdsBotCount);
+
+  // Check for per-agent ACL limit (can only lower, not raise)
+  if (process.env.MAX_ACL) {
+    const agentMaxACL = parseInt(process.env.MAX_ACL);
+    if (!isNaN(agentMaxACL) && agentMaxACL > 0) {
+      return Math.min(calculatedMaxACL, agentMaxACL);
+    }
+  }
+
+  return calculatedMaxACL;
 }
 
 /**
