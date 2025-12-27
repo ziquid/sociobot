@@ -45,11 +45,12 @@ mime_type=$(file --mime-type -b "$1")
 # Route to appropriate extraction tool
 case "$mime_type" in
   audio/*)
-    whisper --output_format txt "$1" 2> /dev/null | \
+    (id -u zds-ai >/dev/null 2>&1) && typeset -x XDG_CACHE_HOME=~zds-ai/.cache
+    whisper --output_format txt --model base "$1" 2> /dev/null | \
       grep -vE "^Detecting.language|^Detected.language"
     ;;
   image/*)
-    if [[ "$platform" == "Darwin" ]]; then
+    if [[ "$platform" == Darwin ]]; then
       # macOS: use textra
       textra -s "$1" 2> /dev/null | cat
     else
