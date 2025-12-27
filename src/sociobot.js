@@ -341,7 +341,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
     for (const response of responses) {
       const message = messageMap.get(response.messageId);
       if (message && response.response) {
-        const responseText = stripThinkTags(response.response).trim();
+        let responseText = stripThinkTags(response.response).trim();
         const aclLimited = response.aclLimited || false;
 
         // Check for NO_RESPONSE directive
@@ -567,7 +567,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
         for (const response of responses) {
           const message = messageMap.get(response.messageId);
           if (message && response.response) {
-            const responseText = stripThinkTags(response.response).trim();
+            let responseText = stripThinkTags(response.response).trim();
 
             // Check for NO_RESPONSE directive
             if (responseText === 'NO_RESPONSE') {
@@ -966,7 +966,7 @@ async function handleRealtimeMessage(message) {
       const result = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD);
 
       if (result && !NO_DISCORD) {
-        const responseText = stripThinkTags(typeof result === 'string' ? result : result.response).trim();
+        let responseText = stripThinkTags(typeof result === 'string' ? result : result.response).trim();
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
         const aclLimited = typeof result === 'object' ? result.aclLimited : false;
 

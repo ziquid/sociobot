@@ -18,12 +18,32 @@ if [[ "$1" == --version || "$1" == -v ]]; then
   exit 0
 fi
 
-# Get all agents and filter to only those with sociobot configuration
+# Check that ZDS_AI_HOST_ID is set
+if [[ -z "$ZDS_AI_HOST_ID" ]]; then
+  echo "❌ Error: ZDS_AI_HOST_ID environment variable is not set" >&2
+  echo "This variable identifies which host this botctl instance is running on." >&2
+  exit 1
+fi
+
+# Get all agents and filter to only those with sociobot configuration AND matching installed_host_id
 ALL_AGENTS=($(zai lc))
 BOTS=()
 for agent in "${ALL_AGENTS[@]}"; do
   config_file=~${agent}/.zds-ai/config.zds.yml
-  if [[ -s "$config_file" ]] && grep -q '^sociobot:' "$config_file" 2>/dev/null; then
+
+  # Skip if no config file or no sociobot section
+  if [[ ! -s "$config_file" ]] || ! grep -q '^sociobot:' "$config_file" 2>/dev/null; then
+    continue
+  fi
+
+  # Extract installed_host_id from config
+  installed_host_id=$(yq eval '.installed_host_id // ""' "$config_file" 2>/dev/null)
+
+  # Skip if no installed_host_id field
+  [[ -z "$installed_host_id" ]] && continue
+
+  # Only add bot if installed_host_id matches ZDS_AI_HOST_ID
+  if [[ "$installed_host_id" == "$ZDS_AI_HOST_ID" ]]; then
     BOTS+=($agent)
   fi
 done
@@ -113,19 +133,45 @@ start_single_bot() {
 
   declare -r LOGS_DIR=$(zai pv "$BOT_NAME" | grep '^ZDS_AI_AGENT_LOGS_DIR=' | cut -d= -f2-)
   declare -r LOG_FILE="${LOGS_DIR}/sociobot.log"
-  declare -r CONFIG_FILE=$(zai pv "$BOT_NAME" | grep '^ZDS_AI_AGENT_CONFIG_FILE=' | cut -d= -f2-)
 
   # Start with clean environment to prevent ZDS_AI_AGENT_* variable leakage
-  # Only pass through essential system variables and config file path
+  # Only pass through essential system and API key variables
+  # Run as agent user when in container to allow writing to agent's log directory
+
   if [[ "$DEBUG_FLAG" == --debug ]]; then
     log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
-    env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
-      nohup sociobot "$BOT_NAME" --debug >> "$LOG_FILE" 2>&1 &
+  fi
+
+  # Determine if we need to sudo (in Docker container running as zds-ai)
+  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    # In container: run as agent user via sudo, passing through API keys and system vars
+    sudo -u "$BOT_NAME" zsh -c "env -i \
+      PATH=\"$PATH\" \
+      HOME=\"$HOME\" \
+      LANG=\"${LANG:-en_US.UTF-8}\" \
+      ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\" \
+      ARLIAI_API_KEY=\"$ARLIAI_API_KEY\" \
+      CLAUDE_CODE_OAUTH_TOKEN=\"$CLAUDE_CODE_OAUTH_TOKEN\" \
+      GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_PERSONAL_ACCESS_TOKEN\" \
+      GITHUB_TOKEN=\"$GITHUB_TOKEN\" \
+      GROK_API_KEY=\"$GROK_API_KEY\" \
+      MISTRAL_API_KEY=\"$MISTRAL_API_KEY\" \
+      MORPH_API_KEY=\"$MORPH_API_KEY\" \
+      NANOGPT_API_KEY=\"$NANOGPT_API_KEY\" \
+      OLLAMA_API_KEY=\"$OLLAMA_API_KEY\" \
+      OPENAI_API_KEY=\"$OPENAI_API_KEY\" \
+      OPENROUTER_API_KEY=\"$OPENROUTER_API_KEY\" \
+      PLANO_API_KEY=\"$PLANO_API_KEY\" \
+      VENICE_API_KEY=\"$VENICE_API_KEY\" \
+      ZDS_AI_CLIENT_ID=\"$ZDS_AI_CLIENT_ID\" \
+      ZDS_AI_HOST_ID=\"$ZDS_AI_HOST_ID\" \
+      ZDS_AI_IMAGE_ENDPOINT=\"$ZDS_AI_IMAGE_ENDPOINT\" \
+      ZDS_AI_ROOT=\"$ZDS_AI_ROOT\" \
+      nohup sociobot \"$BOT_NAME\" $DEBUG_FLAG >> \"$LOG_FILE\" 2>&1 &"
   else
+    # On host or shared user: run as current user
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
-      nohup sociobot "$BOT_NAME" >> "$LOG_FILE" 2>&1 &
+      nohup sociobot "$BOT_NAME" $DEBUG_FLAG >> "$LOG_FILE" 2>&1 &
   fi
 
   sleep 3
@@ -443,10 +489,26 @@ case "${1:-help}" in
         tail -n 55 $FOLLOW_FLAG "$LOG_FILE"
       fi
     else
-      # Existing behavior: show botctl system logs
-      /usr/bin/log show --predicate 'process == "logger" AND eventMessage CONTAINS "sociobot:"' \
-          --info --debug --last 8h --style compact \
-        | sed 's/ logger\[[^]]*\] sociobot: //'
+      # Show botctl system logs (platform-specific)
+      if [[ "$(uname)" == "Darwin" ]]; then
+        # macOS: use unified logging system
+        /usr/bin/log show --predicate 'process == "logger" AND eventMessage CONTAINS "sociobot:"' \
+            --info --debug --last 8h --style compact \
+          | sed 's/ logger\[[^]]*\] sociobot: //'
+      else
+        # Linux: use journalctl or syslog
+        if command -v journalctl >/dev/null 2>&1; then
+          journalctl --since "8 hours ago" --no-pager | grep "sociobot:"
+        elif [[ -f /var/log/syslog ]]; then
+          grep "sociobot:" /var/log/syslog | tail -n 100
+        elif [[ -f /var/log/messages ]]; then
+          grep "sociobot:" /var/log/messages | tail -n 100
+        else
+          echo "❌ Error: Cannot find system logs" >&2
+          echo "Use '$0 logs <bot_name>' to view bot-specific logs" >&2
+          exit 1
+        fi
+      fi
     fi
     ;;
   monitor|mon)
