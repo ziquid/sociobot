@@ -220,6 +220,7 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageTim
     members = channelMembers.map(member => member.user.username).join(',');
   }
 
+  // Build environment with API keys from process.env (passed by botctl)
   const env = {
     ...process.env,
     ZDS_AI_AGENT_MESSAGE_SOURCE: 'discord',

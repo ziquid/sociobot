@@ -131,8 +131,10 @@ start_single_bot() {
     return 0
   fi
 
-  declare -r LOGS_DIR=$(zai pv "$BOT_NAME" | grep '^ZDS_AI_AGENT_LOGS_DIR=' | cut -d= -f2-)
+  local zai_output=$(zai pv "$BOT_NAME")
+  declare -r LOGS_DIR=$(grep '^ZDS_AI_AGENT_LOGS_DIR=' <<< "$zai_output" | cut -d= -f2-)
   declare -r LOG_FILE="${LOGS_DIR}/sociobot.log"
+  declare -r CONFIG_FILE=$(grep '^ZDS_AI_AGENT_CONFIG_FILE=' <<< "$zai_output" | cut -d= -f2-)
 
   # Start with clean environment to prevent ZDS_AI_AGENT_* variable leakage
   # Only pass through essential system and API key variables
@@ -145,9 +147,10 @@ start_single_bot() {
   # Determine if we need to sudo (in Docker container running as zds-ai)
   if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
     # In container: run as agent user via sudo, passing through API keys and system vars
+    local AGENT_HOME=~"$BOT_NAME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
       PATH=\"$PATH\" \
-      HOME=\"$HOME\" \
+      HOME=\"$AGENT_HOME\" \
       LANG=\"${LANG:-en_US.UTF-8}\" \
       ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\" \
       ARLIAI_API_KEY=\"$ARLIAI_API_KEY\" \
@@ -163,6 +166,7 @@ start_single_bot() {
       OPENROUTER_API_KEY=\"$OPENROUTER_API_KEY\" \
       PLANO_API_KEY=\"$PLANO_API_KEY\" \
       VENICE_API_KEY=\"$VENICE_API_KEY\" \
+      ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
       ZDS_AI_CLIENT_ID=\"$ZDS_AI_CLIENT_ID\" \
       ZDS_AI_HOST_ID=\"$ZDS_AI_HOST_ID\" \
       ZDS_AI_IMAGE_ENDPOINT=\"$ZDS_AI_IMAGE_ENDPOINT\" \
@@ -171,6 +175,7 @@ start_single_bot() {
   else
     # On host or shared user: run as current user
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
+      ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       nohup sociobot "$BOT_NAME" $DEBUG_FLAG >> "$LOG_FILE" 2>&1 &
   fi
 
