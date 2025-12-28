@@ -96,10 +96,10 @@ async function downloadAttachment(url, filename, agentName) {
   });
 }
 
-// Transcribe audio file using extract-text command
+// Transcribe audio file using extract-text.sh command
 function transcribeAudio(filePath) {
   try {
-    const transcription = execSync(`extract-text "${filePath}"`, {
+    const transcription = execSync(`extract-text.sh "${filePath}"`, {
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for transcription
       timeout: 60000 // 60 second timeout

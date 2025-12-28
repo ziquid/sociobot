@@ -1,13 +1,12 @@
 {
   "name": "sociobot",
-  "version": "0.1.0-rc.8",
+  "version": "0.1.0-rc.9",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
   "main": "src/sociobot.js",
   "type": "module",
   "bin": {
     "botctl": "src/bin/botctl",
     "download-channel-history": "src/helpers/download-channel-history.js",
-    "extract-text": "src/bin/extract-text",
     "list-channels": "src/helpers/list-channels.js",
     "sociobot": "src/sociobot.js"
   },
