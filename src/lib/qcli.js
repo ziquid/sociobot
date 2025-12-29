@@ -131,7 +131,13 @@ export function encodeSpeech(text, agentName) {
       }
     }
 
-    const audioPath = execSync(`encode-speech.sh ${agentName} -`, {
+    // Add required environment variables for encode-speech.sh
+    if (env.ZDS_AI_AGENT_LOGS_DIR) {
+      env.ZDS_AI_AGENT_LOG_FILE = `${env.ZDS_AI_AGENT_LOGS_DIR}/sociobot.log`;
+    }
+    env.ZDS_AI_AGENT_SESSION = `sociobot-${process.pid}`;
+
+    const audioPath = execSync(`encode-speech.sh -`, {
       input: text,
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer

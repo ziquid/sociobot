@@ -199,12 +199,22 @@ stop_single_bot() {
   fi
 
   log_message "🛑 Stopping $BOT_NAME bot..."
-  pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
+
+  # Use sudo when in container to kill processes owned by agent user
+  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    sudo -u "$BOT_NAME" pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
+  else
+    pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
+  fi
   sleep 2
 
   if is_bot_running "$BOT_NAME"; then
     log_message "⚠️  $BOT_NAME bot still running, force killing..."
-    pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
+    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+      sudo -u "$BOT_NAME" pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
+    else
+      pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
+    fi
     sleep 1
   fi
 
@@ -268,14 +278,26 @@ start_all_bots() {
 stop_all_bots() {
   log_message "🛑 Stopping all Discord bots..."
 
-  # Kill all bot processes
-  pkill -f "sociobot" 2>/dev/null || true
+  # Kill all bot processes - use sudo in container environment
+  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    for BOT in "${BOTS[@]}"; do
+      sudo -u "$BOT" pkill -f "sociobot $BOT" 2>/dev/null || true
+    done
+  else
+    pkill -f "sociobot" 2>/dev/null || true
+  fi
   sleep 2
 
   # Verify they're stopped
   if pgrep -f "sociobot" > /dev/null; then
     log_message "⚠️  Some bots still running, force killing..."
-    pkill -9 -f "sociobot" 2>/dev/null || true
+    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+      for BOT in "${BOTS[@]}"; do
+        sudo -u "$BOT" pkill -9 -f "sociobot $BOT" 2>/dev/null || true
+      done
+    else
+      pkill -9 -f "sociobot" 2>/dev/null || true
+    fi
   fi
 
   log_message "✅ All bots stopped"
