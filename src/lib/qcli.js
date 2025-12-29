@@ -117,7 +117,8 @@ export function encodeSpeech(text, agentName) {
     // Get agent environment variables from zai
     const zaiEnvOutput = execSync(`zai pv ${agentName}`, {
       encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024
+      maxBuffer: 10 * 1024 * 1024,
+      env: process.env
     });
 
     // Parse environment variables from zai pv output

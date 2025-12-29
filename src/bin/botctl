@@ -152,6 +152,7 @@ start_single_bot() {
       PATH=\"$PATH\" \
       HOME=\"$AGENT_HOME\" \
       LANG=\"${LANG:-en_US.UTF-8}\" \
+      TZ=\"$TZ\" \
       ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\" \
       ARLIAI_API_KEY=\"$ARLIAI_API_KEY\" \
       CLAUDE_CODE_OAUTH_TOKEN=\"$CLAUDE_CODE_OAUTH_TOKEN\" \
@@ -175,6 +176,7 @@ start_single_bot() {
   else
     # On host or shared user: run as current user
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
+      TZ="$TZ" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       nohup sociobot "$BOT_NAME" $DEBUG_FLAG >> "$LOG_FILE" 2>&1 &
   fi
