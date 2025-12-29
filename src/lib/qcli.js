@@ -131,7 +131,7 @@ export function encodeSpeech(text, agentName) {
       }
     }
 
-    const audioPath = execSync(`encode-speech ${agentName} -`, {
+    const audioPath = execSync(`encode-speech.sh ${agentName} -`, {
       input: text,
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer
