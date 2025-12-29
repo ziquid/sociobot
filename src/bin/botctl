@@ -172,12 +172,18 @@ start_single_bot() {
       ZDS_AI_HOST_ID=\"$ZDS_AI_HOST_ID\" \
       ZDS_AI_IMAGE_ENDPOINT=\"$ZDS_AI_IMAGE_ENDPOINT\" \
       ZDS_AI_ROOT=\"$ZDS_AI_ROOT\" \
+      ZDS_AI_TTS_ENDPOINT=\"$ZDS_AI_TTS_ENDPOINT\" \
+      ZDS_AI_TTS_USER=\"$ZDS_AI_TTS_USER\" \
+      ZDS_AI_TTS_PASS=\"$ZDS_AI_TTS_PASS\" \
       nohup sociobot \"$BOT_NAME\" $DEBUG_FLAG >> \"$LOG_FILE\" 2>&1 &"
   else
     # On host or shared user: run as current user
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       TZ="$TZ" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
+      ZDS_AI_TTS_ENDPOINT="$ZDS_AI_TTS_ENDPOINT" \
+      ZDS_AI_TTS_USER="$ZDS_AI_TTS_USER" \
+      ZDS_AI_TTS_PASS="$ZDS_AI_TTS_PASS" \
       nohup sociobot "$BOT_NAME" $DEBUG_FLAG >> "$LOG_FILE" 2>&1 &
   fi
 
