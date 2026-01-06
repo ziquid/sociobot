@@ -192,7 +192,7 @@ function logInteraction(agentName, data) {
   }
 }
 
-async function executeQCLI(query, agentName, authorUsername, channel, messageTimestamp, currentACL, isBatch = false, debug = false) {
+async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false) {
   activeProcesses++;
 
   const isDM = channel.type === ChannelType.DM;
@@ -245,7 +245,8 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageTim
   } else {
     const maxACL = getMaxACL(channel, debug);
     env.ZDS_AI_AGENT_MESSAGE_AUTHOR = authorUsername;
-    env.ZDS_AI_AGENT_MESSAGE_TIMESTAMP = messageTimestamp;
+    env.SOCIOBOT_MESSAGE_TIMESTAMP_UTC = messageDate.toISOString();
+    env.SOCIOBOT_MESSAGE_TIMESTAMP_LOCAL = messageDate.toLocaleString();
     env.ZDS_AI_AGENT_MESSAGE_ACL = currentACL.toString();
     env.ZDS_AI_AGENT_MESSAGE_MAX_ACL = maxACL.toString();
 
@@ -471,7 +472,7 @@ ${convertedContent}`;
       console.log(query);
     }
 
-    const response = await executeQCLI(query, agentName, message.author.username, channel, message.createdAt.toLocaleString(), currentACL, false, debug);
+    const response = await executeQCLI(query, agentName, message.author.username, channel, message.createdAt, currentACL, false, debug);
 
     // Log the Q CLI response
     logInteraction(agentName, {
@@ -587,7 +588,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
 
     // For batch processing, ACL is included per-message in the JSON file
     // Use 'batch' as a marker value for the environment variable
-    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date().toLocaleString(), 'batch', true, debug);
+    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date(), 'batch', true, debug);
 
     log(`Checking for output file: ${outputFile}`);
     log(`Output file exists: ${existsSync(outputFile)}`);
