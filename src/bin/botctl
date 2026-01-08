@@ -25,28 +25,36 @@ if [[ -z "$ZDS_AI_HOST_ID" ]]; then
   exit 1
 fi
 
-# Get all agents and filter to only those with sociobot configuration AND matching installed_host_id
+# Get all agents and filter to those with sociobot or email configuration AND matching installed_host_id
 ALL_AGENTS=($(zai lc))
-BOTS=()
+SOCIOBOT_BOTS=()
+MAILBOT_BOTS=()
 for agent in "${ALL_AGENTS[@]}"; do
   config_file=~${agent}/.zds-ai/config.zds.yml
 
-  # Skip if no config file or no sociobot section
-  if [[ ! -s "$config_file" ]] || ! grep -q '^sociobot:' "$config_file" 2>/dev/null; then
-    continue
-  fi
+  # Skip if no config file
+  [[ ! -s "$config_file" ]] && continue
 
   # Extract installed_host_id from config
   installed_host_id=$(yq eval '.installed_host_id // ""' "$config_file" 2>/dev/null)
 
-  # Skip if no installed_host_id field
+  # Skip if no installed_host_id field or doesn't match ZDS_AI_HOST_ID
   [[ -z "$installed_host_id" ]] && continue
+  [[ "$installed_host_id" != "$ZDS_AI_HOST_ID" ]] && continue
 
-  # Only add bot if installed_host_id matches ZDS_AI_HOST_ID
-  if [[ "$installed_host_id" == "$ZDS_AI_HOST_ID" ]]; then
-    BOTS+=($agent)
+  # Check for sociobot section
+  if grep -q '^sociobot:' "$config_file" 2>/dev/null; then
+    SOCIOBOT_BOTS+=($agent)
+  fi
+
+  # Check for email section
+  if grep -q '^email:' "$config_file" 2>/dev/null; then
+    MAILBOT_BOTS+=($agent)
   fi
 done
+
+# Maintain BOTS for backwards compatibility (union of both)
+BOTS=("${SOCIOBOT_BOTS[@]}" "${MAILBOT_BOTS[@]}")
 PIDFILE="/tmp/botctl.pid"
 MAX_LOAD_THRESHOLD=25
 EMERGENCY_LOAD_THRESHOLD=40
@@ -85,9 +93,38 @@ get_bot_status() {
   fi
 }
 
+get_mailbot_status() {
+  declare -r BOT_NAME="$1"
+
+  # Find all mailbot processes and check their environment variables
+  for pid in $(pgrep -f mailbot 2>/dev/null); do
+    # Get process environment (platform-specific)
+    if [[ "$(uname)" == Darwin ]]; then
+      # macOS: use ps eww
+      ps eww -p "$pid" 2>/dev/null | tr ' ' '\n' | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+    else
+      # Linux: read /proc/<pid>/environ
+      [[ -r "/proc/$pid/environ" ]] || continue
+      tr '\0' '\n' < "/proc/$pid/environ" | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+    fi
+
+    # Found matching process - check if running in debug mode
+    ps -p "$pid" -o args= 2>/dev/null | grep -q -- --debug && echo debug || echo running
+    return
+  done
+
+  echo stopped
+}
+
 is_bot_running() {
   declare -r BOT_NAME="$1"
   local STATUS=$(get_bot_status "$BOT_NAME")
+  [[ "$STATUS" != stopped ]]
+}
+
+is_mailbot_running() {
+  declare -r BOT_NAME="$1"
+  local STATUS=$(get_mailbot_status "$BOT_NAME")
   [[ "$STATUS" != stopped ]]
 }
 
@@ -236,6 +273,100 @@ stop_single_bot() {
   fi
 }
 
+start_single_mailbot() {
+  declare -r BOT_NAME="$1"
+  local DEBUG_FLAG="$2"
+
+  if is_mailbot_running "$BOT_NAME"; then
+    log_message "✅ $BOT_NAME mailbot already running"
+    return 0
+  fi
+
+  local zai_output=$(zai pv "$BOT_NAME")
+  declare -r LOGS_DIR=$(grep '^ZDS_AI_AGENT_LOGS_DIR=' <<< "$zai_output" | cut -d= -f2-)
+  declare -r LOG_FILE="${LOGS_DIR}/mailbot.log"
+  declare -r CONFIG_FILE=$(grep '^ZDS_AI_AGENT_CONFIG_FILE=' <<< "$zai_output" | cut -d= -f2-)
+  declare -r BOT_NAME_VAR=$(grep '^ZDS_AI_AGENT_BOT_NAME=' <<< "$zai_output" | cut -d= -f2-)
+
+  if [[ "$DEBUG_FLAG" == --debug ]]; then
+    log_message "🐛 Starting $BOT_NAME mailbot in DEBUG mode"
+  fi
+
+  # Determine if we need to sudo (in Docker container running as zds-ai)
+  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    # In container: run as agent user via sudo
+    local AGENT_HOME=~"$BOT_NAME"
+    sudo -u "$BOT_NAME" zsh -c "env -i \
+      PATH=\"$PATH\" \
+      HOME=\"$AGENT_HOME\" \
+      LANG=\"${LANG:-en_US.UTF-8}\" \
+      TZ=\"$TZ\" \
+      ZDS_AI_AGENT_BOT_NAME=\"$BOT_NAME_VAR\" \
+      ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
+      ZDS_AI_AGENT_LOGS_DIR=\"$LOGS_DIR\" \
+      ZDS_AI_HOST_ID=\"$ZDS_AI_HOST_ID\" \
+      nohup mailbot $DEBUG_FLAG >> \"$LOG_FILE\" 2>&1 &"
+  else
+    # On host or shared user: run as current user
+    env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
+      TZ="$TZ" \
+      ZDS_AI_AGENT_BOT_NAME="$BOT_NAME_VAR" \
+      ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
+      ZDS_AI_AGENT_LOGS_DIR="$LOGS_DIR" \
+      ZDS_AI_HOST_ID="$ZDS_AI_HOST_ID" \
+      nohup mailbot $DEBUG_FLAG >> "$LOG_FILE" 2>&1 &
+  fi
+
+  sleep 2
+
+  if is_mailbot_running "$BOT_NAME"; then
+    log_message "✅ $BOT_NAME mailbot started successfully"
+    return 0
+  else
+    log_message "❌ Failed to start $BOT_NAME mailbot"
+    return 1
+  fi
+}
+
+stop_single_mailbot() {
+  declare -r BOT_NAME="$1"
+
+  if ! is_mailbot_running "$BOT_NAME"; then
+    log_message "✅ $BOT_NAME mailbot already stopped"
+    return 0
+  fi
+
+  log_message "🛑 Stopping $BOT_NAME mailbot..."
+
+  # Use sudo when in container to kill processes owned by agent user
+  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    sudo -u "$BOT_NAME" pkill -f mailbot 2>/dev/null || true
+    sleep 1
+  else
+    pkill -f mailbot 2>/dev/null || true
+    sleep 1
+  fi
+
+  # Force kill if still running
+  if is_mailbot_running "$BOT_NAME"; then
+    log_message "⚠️  Mailbot still running, force killing..."
+    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+      sudo -u "$BOT_NAME" pkill -9 -f mailbot 2>/dev/null || true
+    else
+      pkill -9 -f mailbot 2>/dev/null || true
+    fi
+    sleep 1
+  fi
+
+  if ! is_mailbot_running "$BOT_NAME"; then
+    log_message "✅ $BOT_NAME mailbot stopped"
+    return 0
+  else
+    log_message "❌ Failed to stop $BOT_NAME mailbot"
+    return 1
+  fi
+}
+
 check_and_restart_bot() {
   declare -r BOT_NAME="$1"
 
@@ -273,39 +404,72 @@ restart_all_bots() {
 start_all_bots() {
   declare BOT
 
-  log_message "🚀 Starting ${#BOTS[@]} Discord bots..."
+  local total_bots=$(( ${#SOCIOBOT_BOTS[@]} + ${#MAILBOT_BOTS[@]} ))
+  log_message "🚀 Starting ${total_bots} bots (${#SOCIOBOT_BOTS[@]} Discord, ${#MAILBOT_BOTS[@]} Email)..."
 
-  # Start all bots
-  for BOT in "${BOTS[@]}"; do
+  # Start all sociobots
+  for BOT in "${SOCIOBOT_BOTS[@]}"; do
     start_single_bot "$BOT"
-    sleep 5 # FIXME: don't sleep after last bot startup?
+    sleep 5
   done
 
-  log_message "🎯 ${#BOTS[@]} bots startup complete"
+  # Start all mailbots
+  for BOT in "${MAILBOT_BOTS[@]}"; do
+    start_single_mailbot "$BOT"
+    sleep 5
+  done
+
+  log_message "🎯 ${total_bots} bots startup complete"
 }
 
 stop_all_bots() {
-  log_message "🛑 Stopping all Discord bots..."
+  local total_bots=$(( ${#SOCIOBOT_BOTS[@]} + ${#MAILBOT_BOTS[@]} ))
+  log_message "🛑 Stopping all bots (${#SOCIOBOT_BOTS[@]} Discord, ${#MAILBOT_BOTS[@]} Email)..."
 
-  # Kill all bot processes - use sudo in container environment
-  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
-    for BOT in "${BOTS[@]}"; do
-      sudo -u "$BOT" pkill -f "sociobot $BOT" 2>/dev/null || true
-    done
-  else
-    pkill -f "sociobot" 2>/dev/null || true
+  # Kill all sociobot processes
+  if [[ ${#SOCIOBOT_BOTS[@]} -gt 0 ]]; then
+    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+      for BOT in "${SOCIOBOT_BOTS[@]}"; do
+        sudo -u "$BOT" pkill -f "sociobot $BOT" 2>/dev/null || true
+      done
+    else
+      pkill -f "sociobot" 2>/dev/null || true
+    fi
   fi
+
+  # Kill all mailbot processes
+  if [[ ${#MAILBOT_BOTS[@]} -gt 0 ]]; then
+    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+      for BOT in "${MAILBOT_BOTS[@]}"; do
+        sudo -u "$BOT" pkill -f mailbot 2>/dev/null || true
+      done
+    else
+      pkill -f mailbot 2>/dev/null || true
+    fi
+  fi
+
   sleep 2
 
-  # Verify they're stopped
+  # Verify they're stopped and force kill if needed
   if pgrep -f "sociobot" > /dev/null; then
-    log_message "⚠️  Some bots still running, force killing..."
+    log_message "⚠️  Some sociobots still running, force killing..."
     if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
-      for BOT in "${BOTS[@]}"; do
+      for BOT in "${SOCIOBOT_BOTS[@]}"; do
         sudo -u "$BOT" pkill -9 -f "sociobot $BOT" 2>/dev/null || true
       done
     else
       pkill -9 -f "sociobot" 2>/dev/null || true
+    fi
+  fi
+
+  if pgrep -f mailbot > /dev/null; then
+    log_message "⚠️  Some mailbots still running, force killing..."
+    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+      for BOT in "${MAILBOT_BOTS[@]}"; do
+        sudo -u "$BOT" pkill -9 -f mailbot 2>/dev/null || true
+      done
+    else
+      pkill -9 -f mailbot 2>/dev/null || true
     fi
   fi
 
@@ -327,20 +491,47 @@ show_status() {
   fi
   echo
 
-  for BOT in "${BOTS[@]}"; do
-    local STATUS=$(get_bot_status "$BOT")
-    case "$STATUS" in
-      debug)
-        echo "🐛 $BOT bot: RUNNING (DEBUG MODE)"
-        ;;
-      running)
-        echo "✅ $BOT bot: RUNNING"
-        ;;
-      stopped)
-        echo "❌ $BOT bot: STOPPED"
-        ;;
-    esac
-  done
+  # Show sociobot status
+  if [[ ${#SOCIOBOT_BOTS[@]} -gt 0 ]]; then
+    echo "Discord Bots (sociobot):"
+    for BOT in "${SOCIOBOT_BOTS[@]}"; do
+      local STATUS=$(get_bot_status "$BOT")
+      case "$STATUS" in
+        debug)
+          echo "  🐛 $BOT: RUNNING (DEBUG MODE)"
+          ;;
+        running)
+          echo "  ✅ $BOT: RUNNING"
+          ;;
+        stopped)
+          echo "  ❌ $BOT: STOPPED"
+          ;;
+      esac
+    done
+    echo
+  fi
+
+  # Show mailbot status
+  if [[ ${#MAILBOT_BOTS[@]} -gt 0 ]]; then
+    echo "Email Bots (mailbot):"
+    for BOT in "${MAILBOT_BOTS[@]}"; do
+      local STATUS=$(get_mailbot_status "$BOT")
+      case "$STATUS" in
+        debug)
+          echo "  🐛 $BOT: RUNNING (DEBUG MODE)"
+          ;;
+        running)
+          echo "  ✅ $BOT: RUNNING"
+          ;;
+        stopped)
+          echo "  ❌ $BOT: STOPPED"
+          ;;
+        *)
+          echo "  ⚠️  $BOT: UNKNOWN STATUS ($STATUS)"
+          ;;
+      esac
+    done
+  fi
 }
 
 monitor_loop() {
@@ -416,10 +607,17 @@ case "${1:-help}" in
         exit 1
       fi
 
-      # Start each bot
+      # Start each bot (sociobot and/or mailbot)
       for BOT_NAME in "${BOT_NAMES[@]}"; do
         if is_valid_bot "$BOT_NAME"; then
-          start_single_bot "$BOT_NAME" "$DEBUG_FLAG"
+          # Check if bot has sociobot config
+          if [[ " ${SOCIOBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+            start_single_bot "$BOT_NAME" "$DEBUG_FLAG"
+          fi
+          # Check if bot has mailbot config
+          if [[ " ${MAILBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+            start_single_mailbot "$BOT_NAME" "$DEBUG_FLAG"
+          fi
         else
           echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
           echo "Valid bots: ${BOTS[*]}" >&2
@@ -435,7 +633,14 @@ case "${1:-help}" in
       shift  # Remove command name
       for BOT_NAME in "$@"; do
         if is_valid_bot "$BOT_NAME"; then
-          stop_single_bot "$BOT_NAME"
+          # Check if bot has sociobot config
+          if [[ " ${SOCIOBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+            stop_single_bot "$BOT_NAME"
+          fi
+          # Check if bot has mailbot config
+          if [[ " ${MAILBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+            stop_single_mailbot "$BOT_NAME"
+          fi
         else
           echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
           echo "Valid bots: ${BOTS[*]}" >&2
@@ -470,11 +675,19 @@ case "${1:-help}" in
         exit 1
       fi
 
-      # Restart each bot
+      # Restart each bot (sociobot and/or mailbot)
       for BOT_NAME in "${BOT_NAMES[@]}"; do
         if is_valid_bot "$BOT_NAME"; then
-          stop_single_bot "$BOT_NAME"
-          start_single_bot "$BOT_NAME" "$DEBUG_FLAG"
+          # Check if bot has sociobot config
+          if [[ " ${SOCIOBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+            stop_single_bot "$BOT_NAME"
+            start_single_bot "$BOT_NAME" "$DEBUG_FLAG"
+          fi
+          # Check if bot has mailbot config
+          if [[ " ${MAILBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+            stop_single_mailbot "$BOT_NAME"
+            start_single_mailbot "$BOT_NAME" "$DEBUG_FLAG"
+          fi
         else
           echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
           echo "Valid bots: ${BOTS[*]}" >&2
@@ -511,18 +724,50 @@ case "${1:-help}" in
 
       shift  # Remove command name
       for arg in "$@"; do
-        if [[ "$arg" == -f ]]; then
-          FOLLOW_FLAG=-f
-        else
-          BOT_NAME="$arg"
-        fi
+        [[ "$arg" == -f ]] && FOLLOW_FLAG=-F || BOT_NAME="$arg"
       done
 
       if [[ -n "$BOT_NAME" ]]; then
-        # Construct log file path and execute tail
+        if ! is_valid_bot "$BOT_NAME"; then
+          echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
+          echo "Valid bots: ${BOTS[*]}" >&2
+          exit 1
+        fi
+
+        # Construct log file path based on bot type
         local LOGS_DIR=$(zai pv "$BOT_NAME" | grep '^ZDS_AI_AGENT_LOGS_DIR=' | cut -d= -f2-)
-        local LOG_FILE="${LOGS_DIR}/sociobot.log"
-        tail -n 55 $FOLLOW_FLAG "$LOG_FILE"
+        local LOG_FILES=()
+
+        # Check which bot type(s) this bot has
+        if [[ " ${SOCIOBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+          LOG_FILES+=("${LOGS_DIR}/sociobot.log")
+        fi
+
+        if [[ " ${MAILBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+          LOG_FILES+=("${LOGS_DIR}/mailbot.log")
+        fi
+
+        # Show logs
+        if [[ ${#LOG_FILES[@]} -eq 0 ]]; then
+          echo "❌ Error: No log files found for bot '$BOT_NAME'" >&2
+          exit 1
+        elif [[ ${#LOG_FILES[@]} -eq 1 ]]; then
+          # Single log file - show it
+          tail -n 55 $FOLLOW_FLAG "${LOG_FILES[1]}"
+        else
+          # Multiple log files - tail can handle them all
+          if [[ -n "$FOLLOW_FLAG" ]]; then
+            # Follow both logs (tail will show which file each line is from)
+            tail -n 55 $FOLLOW_FLAG "${LOG_FILES[@]}"
+          else
+            # Show both logs sequentially with headers
+            for LOG_FILE in "${LOG_FILES[@]}"; do
+              echo "=== ${LOG_FILE:t} ==="
+              tail -n 55 "$LOG_FILE"
+              echo
+            done
+          fi
+        fi
       fi
     else
       # Show botctl system logs (platform-specific)
