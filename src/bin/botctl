@@ -107,7 +107,7 @@ get_mailbot_status() {
       [[ -f "/proc/$pid/environ" ]] || continue
       # Use sudo to read environ when in container (processes run as different users)
       if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
-        sudo cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+        sudo -u "$BOT_NAME" cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
       else
         [[ -r "/proc/$pid/environ" ]] || continue
         tr '\0' '\n' < "/proc/$pid/environ" | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
