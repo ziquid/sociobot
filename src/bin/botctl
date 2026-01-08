@@ -104,8 +104,14 @@ get_mailbot_status() {
       ps eww -p "$pid" 2>/dev/null | tr ' ' '\n' | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
     else
       # Linux: read /proc/<pid>/environ
-      [[ -r "/proc/$pid/environ" ]] || continue
-      tr '\0' '\n' < "/proc/$pid/environ" | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+      [[ -f "/proc/$pid/environ" ]] || continue
+      # Use sudo to read environ when in container (processes run as different users)
+      if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+        sudo cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+      else
+        [[ -r "/proc/$pid/environ" ]] || continue
+        tr '\0' '\n' < "/proc/$pid/environ" | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+      fi
     fi
 
     # Found matching process - check if running in debug mode
