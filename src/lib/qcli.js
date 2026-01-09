@@ -245,8 +245,8 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
   } else {
     const maxACL = getMaxACL(channel, debug);
     env.ZDS_AI_AGENT_MESSAGE_AUTHOR = authorUsername;
-    env.SOCIOBOT_MESSAGE_TIMESTAMP_UTC = messageDate.toISOString();
-    env.SOCIOBOT_MESSAGE_TIMESTAMP_LOCAL = messageDate.toLocaleString();
+    env.ZDS_AI_AGENT_MESSAGE_TIMESTAMP_UTC = messageDate.toISOString();
+    env.ZDS_AI_AGENT_MESSAGE_TIMESTAMP_LOCAL = messageDate.toLocaleString();
     env.ZDS_AI_AGENT_MESSAGE_ACL = currentACL.toString();
     env.ZDS_AI_AGENT_MESSAGE_MAX_ACL = maxACL.toString();
 
