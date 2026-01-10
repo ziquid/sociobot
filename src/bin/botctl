@@ -195,7 +195,7 @@ start_single_bot() {
       PATH=\"$PATH\" \
       HOME=\"$AGENT_HOME\" \
       LANG=\"${LANG:-en_US.UTF-8}\" \
-      TZ=\"$TZ\" \
+      ${TZ:+TZ=\"$TZ\"} \
       ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\" \
       ARLIAI_API_KEY=\"$ARLIAI_API_KEY\" \
       CLAUDE_CODE_OAUTH_TOKEN=\"$CLAUDE_CODE_OAUTH_TOKEN\" \
@@ -222,7 +222,7 @@ start_single_bot() {
   else
     # On host or shared user: run as current user
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      TZ="$TZ" \
+      ${TZ:+TZ="$TZ"} \
       CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       ZDS_AI_TTS_ENDPOINT="$ZDS_AI_TTS_ENDPOINT" \
@@ -306,7 +306,7 @@ start_single_mailbot() {
       PATH=\"$PATH\" \
       HOME=\"$AGENT_HOME\" \
       LANG=\"${LANG:-en_US.UTF-8}\" \
-      TZ=\"$TZ\" \
+      ${TZ:+TZ=\"$TZ\"} \
       ZDS_AI_AGENT_BOT_NAME=\"$BOT_NAME_VAR\" \
       ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
       ZDS_AI_AGENT_LOGS_DIR=\"$LOGS_DIR\" \
@@ -315,7 +315,7 @@ start_single_mailbot() {
   else
     # On host or shared user: run as current user
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      TZ="$TZ" \
+      ${TZ:+TZ="$TZ"} \
       ZDS_AI_AGENT_BOT_NAME="$BOT_NAME_VAR" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       ZDS_AI_AGENT_LOGS_DIR="$LOGS_DIR" \
