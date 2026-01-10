@@ -307,7 +307,7 @@ start_single_mailbot() {
       HOME=\"$AGENT_HOME\" \
       LANG=\"${LANG:-en_US.UTF-8}\" \
       ${TZ:+TZ=\"$TZ\"} \
-      ZDS_AI_AGENT_BOT_NAME=\"$BOT_NAME_VAR\" \
+      ZDS_AI_AGENT_HANDLE=\"$BOT_NAME_VAR\" \
       ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
       ZDS_AI_AGENT_LOGS_DIR=\"$LOGS_DIR\" \
       ZDS_AI_HOST_ID=\"$ZDS_AI_HOST_ID\" \
@@ -316,7 +316,7 @@ start_single_mailbot() {
     # On host or shared user: run as current user
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       ${TZ:+TZ="$TZ"} \
-      ZDS_AI_AGENT_BOT_NAME="$BOT_NAME_VAR" \
+      ZDS_AI_AGENT_HANDLE="$BOT_NAME_VAR" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       ZDS_AI_AGENT_LOGS_DIR="$LOGS_DIR" \
       ZDS_AI_HOST_ID="$ZDS_AI_HOST_ID" \
