@@ -101,16 +101,16 @@ get_mailbot_status() {
     # Get process environment (platform-specific)
     if [[ "$(uname)" == Darwin ]]; then
       # macOS: use ps eww
-      ps eww -p "$pid" 2>/dev/null | tr ' ' '\n' | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+      ps eww -p "$pid" 2>/dev/null | tr ' ' '\n' | grep -q "ZDS_AI_AGENT_HANDLE=$BOT_NAME" || continue
     else
       # Linux: read /proc/<pid>/environ
       [[ -f "/proc/$pid/environ" ]] || continue
       # Use sudo to read environ when in container (processes run as different users)
       if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
-        sudo -u "$BOT_NAME" cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+        sudo -u "$BOT_NAME" cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -q "ZDS_AI_AGENT_HANDLE=$BOT_NAME" || continue
       else
         [[ -r "/proc/$pid/environ" ]] || continue
-        tr '\0' '\n' < "/proc/$pid/environ" | grep -q "ZDS_AI_AGENT_BOT_NAME=$BOT_NAME" || continue
+        tr '\0' '\n' < "/proc/$pid/environ" | grep -q "ZDS_AI_AGENT_HANDLE=$BOT_NAME" || continue
       fi
     fi
 
@@ -292,7 +292,7 @@ start_single_mailbot() {
   declare -r LOGS_DIR=$(grep '^ZDS_AI_AGENT_LOGS_DIR=' <<< "$zai_output" | cut -d= -f2-)
   declare -r LOG_FILE="${LOGS_DIR}/mailbot.log"
   declare -r CONFIG_FILE=$(grep '^ZDS_AI_AGENT_CONFIG_FILE=' <<< "$zai_output" | cut -d= -f2-)
-  declare -r BOT_NAME_VAR=$(grep '^ZDS_AI_AGENT_BOT_NAME=' <<< "$zai_output" | cut -d= -f2-)
+  declare -r BOT_NAME_VAR=$(grep '^ZDS_AI_AGENT_HANDLE=' <<< "$zai_output" | cut -d= -f2-)
 
   if [[ "$DEBUG_FLAG" == --debug ]]; then
     log_message "🐛 Starting $BOT_NAME mailbot in DEBUG mode"
