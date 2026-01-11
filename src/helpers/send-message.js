@@ -91,7 +91,11 @@ client.once('clientReady', async () => {
       const webhook = await client.fetchWebhook(webhookId, webhookToken);
       console.log(`Sending webhook message to channel...`);
 
-      await sendWebhookMessage(webhook, messageText);
+      // Get bot's display name and avatar URL to show headshot
+      const botUsername = client.user.username;
+      const botAvatarURL = client.user.displayAvatarURL();
+
+      await sendWebhookMessage(webhook, messageText, 1, botUsername, botAvatarURL);
 
       console.log(`Webhook message sent successfully`);
       process.exit(0);
@@ -106,7 +110,7 @@ client.once('clientReady', async () => {
     }
     
     // Send message to channel with ACL footer
-    await sendChannelMessage(targetChannel, message);
+    await sendChannelMessage(targetChannel, message, 1);
     console.log(`Message sent successfully`);
 
 
