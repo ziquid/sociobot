@@ -13,7 +13,8 @@
   "scripts": {
     "start": "bun run src/sociobot.js",
     "dev": "bun --watch run src/sociobot.js",
-    "test": "bash tests/test-bot.sh"
+    "test": "bash tests/test-bot.sh",
+    "build": "echo 'No build step required for sociobot'"
   },
   "files": [
     "src/",
