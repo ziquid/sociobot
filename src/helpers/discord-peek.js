@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Discord Peek Tool - Read-only Discord monitoring for ZDS AI agents
- * Usage: node discord-peek.js [channel] [limit]
+ * Usage: ./discord-peek.js [channel] [limit]
  */
 
 import { spawn } from 'child_process';

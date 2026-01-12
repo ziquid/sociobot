@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Discord Webhook Creator for ZDS Bot Infrastructure
@@ -13,10 +13,10 @@
  * - Each bot needs its own webhook for proper isolation
  * 
  * USAGE:
- *   node create-webhooks.js <channel-id>
+ *   ./create-webhooks.js <channel-id>
  * 
  * EXAMPLE:
- *   node create-webhooks.js 1417639609231347812
+ *   ./create-webhooks.js 1417639609231347812
  * 
  * REQUIREMENTS:
  * - Discord bot token with webhook creation permissions
@@ -187,7 +187,7 @@ ${webhookResults.map(webhook => `
 
 ### To Recreate Webhooks:
 \`\`\`bash
-node create-webhooks.js <channel-id>
+./create-webhooks.js <channel-id>
 \`\`\`
 
 ### To Restart Bots After Webhook Changes:
@@ -230,9 +230,9 @@ cat .env.test-agent | grep WEBHOOK
 
 // Main execution
 if (process.argv.length < 3) {
-  console.error('Usage: node create-webhooks.js <channel-id> [bot-name]');
-  console.error('Example: node create-webhooks.js 1417639609231347812');
-  console.error('Example: node create-webhooks.js 1417639609231347812 test-agent');
+  console.error('Usage: ./create-webhooks.js <channel-id> [bot-name]');
+  console.error('Example: ./create-webhooks.js 1417639609231347812');
+  console.error('Example: ./create-webhooks.js 1417639609231347812 test-agent');
   process.exit(1);
 }
 

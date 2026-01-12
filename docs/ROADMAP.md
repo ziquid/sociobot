@@ -21,3 +21,7 @@
   - [✅] src/lib/message-utils.js:146 -- Use double hyphen in @param acl
   - [✅] src/lib/message-utils.js:174 -- Use double hyphen in @param username
   - [✅] src/lib/message-utils.js:175 -- Use double hyphen in @param avatarURL
+- [✅] Convert from npm to bun
+  - [✅] package.json -- Update scripts to use bun commands
+  - [✅] src/sociobot.js -- Update shebang to #!/usr/bin/env bun
+  - [✅] sociobot.inc.mk -- Update FEATURES flag from npm to bun

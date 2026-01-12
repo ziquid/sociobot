@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { chdir } from 'process';
 import { dirname } from 'path';
@@ -21,7 +21,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 Download Channel History - Export Discord channel messages to flat files
 
 USAGE:
-  node download-channel-history.js <agent-name> <channel-id> [options]
+  ./download-channel-history.js <agent-name> <channel-id> [options]
 
 OPTIONS:
   --format <format>    Output format: json, text, markdown (default: json)
@@ -30,9 +30,9 @@ OPTIONS:
   --help, -h          Show this help message
 
 EXAMPLES:
-  node download-channel-history.js mybot 123456789 --format json
-  node download-channel-history.js mybot 123456789 --format markdown --limit 500
-  node download-channel-history.js mybot 123456789 --output channel-export.txt
+  ./download-channel-history.js mybot 123456789 --format json
+  ./download-channel-history.js mybot 123456789 --format markdown --limit 500
+  ./download-channel-history.js mybot 123456789 --output channel-export.txt
 
 FORMATS:
   json      - Structured JSON with full message data
@@ -48,7 +48,7 @@ const channelId = process.argv[3];
 
 if (!agentName || !channelId) {
   console.error('Error: Agent name and channel ID are required');
-  console.error('Usage: node download-channel-history.js <agent-name> <channel-id>');
+  console.error('Usage: ./download-channel-history.js <agent-name> <channel-id>');
   console.error('Use --help for more information');
   process.exit(1);
 }

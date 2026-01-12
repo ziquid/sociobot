@@ -1,12 +1,12 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { Client, GatewayIntentBits } from 'discord.js';
 import { getConfig } from '../lib/config.js';
 import { sendChannelMessage, sendWebhookMessage } from '../lib/message-utils.js';
 
-// Usage: node send-message.js <agent-name> <channel-id-or-name> "message text"
-// Usage: node send-message.js <agent-name> dm <user-id> "message text"
-// Usage: node send-message.js <agent-name> webhook <channel-id-or-name> "message text"
+// Usage: ./send-message.js <agent-name> <channel-id-or-name> "message text"
+// Usage: ./send-message.js <agent-name> dm <user-id> "message text"
+// Usage: ./send-message.js <agent-name> webhook <channel-id-or-name> "message text"
 
 const agentName = process.argv[2];
 const target = process.argv[3];
@@ -14,14 +14,14 @@ const userId = process.argv[4];
 const messageText = process.argv[5];
 
 if (!agentName || !target) {
-  console.error('Usage: node send-message.js <agent-name> <channel-id-or-name> "message"');
-  console.error('   OR: node send-message.js <agent-name> dm <user-id> "message"');
-  console.error('   OR: node send-message.js <agent-name> webhook <channel-id-or-name> "message"');
+  console.error('Usage: ./send-message.js <agent-name> <channel-id-or-name> "message"');
+  console.error('   OR: ./send-message.js <agent-name> dm <user-id> "message"');
+  console.error('   OR: ./send-message.js <agent-name> webhook <channel-id-or-name> "message"');
   console.error('Examples:');
-  console.error('  node send-message.js test-agent 1234567890 "Hello channel!"');
-  console.error('  node send-message.js test-agent bot-testing "Hello channel!"');
-  console.error('  node send-message.js test-agent dm 9876543210 "Hello user!"');
-  console.error('  node send-message.js test-agent webhook bot-testing "Hello via webhook!"');
+  console.error('  ./send-message.js test-agent 1234567890 "Hello channel!"');
+  console.error('  ./send-message.js test-agent bot-testing "Hello channel!"');
+  console.error('  ./send-message.js test-agent dm 9876543210 "Hello user!"');
+  console.error('  ./send-message.js test-agent webhook bot-testing "Hello via webhook!"');
   process.exit(1);
 }
 

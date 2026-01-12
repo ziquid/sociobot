@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { Client, GatewayIntentBits, ChannelType, PermissionFlagsBits } from 'discord.js';
 import dotenv from 'dotenv';
@@ -10,8 +10,8 @@ const isPrivate = process.argv[3] === '--private';
 const botName = process.argv[4] || 'test-agent';
 
 if (!channelName) {
-  console.error('Usage: node create-channel.js <channel-name> [--private] [bot-name]');
-  console.error('Example: node create-channel.js proj-ticketing --private test-agent');
+  console.error('Usage: ./create-channel.js <channel-name> [--private] [bot-name]');
+  console.error('Example: ./create-channel.js proj-ticketing --private test-agent');
   process.exit(1);
 }
 

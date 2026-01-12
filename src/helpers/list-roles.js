@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import dotenv from 'dotenv';
 import { execSync } from 'child_process';
@@ -8,8 +8,8 @@ import { Client, GatewayIntentBits } from "discord.js";
 const agentName = process.argv[2];
 
 if (!agentName) {
-  console.error('Usage: node list-roles.js <agent-name>');
-  console.error('Example: node list-roles.js test-agent');
+  console.error('Usage: ./list-roles.js <agent-name>');
+  console.error('Example: ./list-roles.js test-agent');
   process.exit(1);
 }
 

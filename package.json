@@ -11,8 +11,8 @@
     "sociobot": "src/sociobot.js"
   },
   "scripts": {
-    "start": "node src/sociobot.js",
-    "dev": "node --watch src/sociobot.js",
+    "start": "bun run src/sociobot.js",
+    "dev": "bun --watch run src/sociobot.js",
     "test": "bash tests/test-bot.sh"
   },
   "files": [

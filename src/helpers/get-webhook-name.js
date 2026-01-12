@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Get Discord webhook name for verification
@@ -28,8 +28,8 @@ async function getWebhookName(botName) {
 
 const botName = process.argv[2];
 if (!botName) {
-  console.error('Usage: node get-webhook-name.js <bot-name>');
-  console.error('Example: node get-webhook-name.js <bot-name>');
+  console.error('Usage: ./get-webhook-name.js <bot-name>');
+  console.error('Example: ./get-webhook-name.js <bot-name>');
   process.exit(1);
 }
 

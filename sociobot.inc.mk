@@ -1,4 +1,4 @@
-FEATURES := npm
+FEATURES := bun
 
 ALL_TARGET := pack
 

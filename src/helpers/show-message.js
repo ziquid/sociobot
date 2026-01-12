@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import dotenv from 'dotenv';
 import { execSync } from 'child_process';
@@ -9,7 +9,7 @@ const agentName = process.argv[2];
 const messageId = process.argv[3];
 
 if (!agentName || !messageId) {
-  console.error('Usage: node show-message.js <agent-name> <message-id>');
+  console.error('Usage: ./show-message.js <agent-name> <message-id>');
   process.exit(1);
 }
 
