@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * List all channels the bot has access to
- * Usage: node list-channels.js <agent-name>
+ * Usage: ./list-channels.js <agent-name>
  */
 
 import { Client, Events, GatewayIntentBits, ChannelType } from "discord.js";
@@ -14,10 +14,10 @@ const DISCOVER_DMS = process.argv.includes('--discover-dms');
 const DEBUG = process.argv.includes('--debug');
 
 if (!agentName) {
-  console.error('Usage: node list-channels.js <agent-name> [--discover-dms] [--debug]');
-  console.error('Example: node list-channels.js test-agent');
-  console.error('         node list-channels.js test-agent --discover-dms');
-  console.error('         node list-channels.js test-agent --debug');
+  console.error('Usage: ./list-channels.js <agent-name> [--discover-dms] [--debug]');
+  console.error('Example: ./list-channels.js test-agent');
+  console.error('         ./list-channels.js test-agent --discover-dms');
+  console.error('         ./list-channels.js test-agent --debug');
   process.exit(1);
 }
 

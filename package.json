@@ -1,6 +1,6 @@
 {
   "name": "sociobot",
-  "version": "0.1.1-alpha.2",
+  "version": "0.1.1",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
   "main": "src/sociobot.js",
   "type": "module",
@@ -11,9 +11,10 @@
     "sociobot": "src/sociobot.js"
   },
   "scripts": {
-    "start": "node src/sociobot.js",
-    "dev": "node --watch src/sociobot.js",
-    "test": "bash tests/test-bot.sh"
+    "start": "bun run src/sociobot.js",
+    "dev": "bun --watch run src/sociobot.js",
+    "test": "bash tests/test-bot.sh",
+    "build": "echo 'No build step required for sociobot'"
   },
   "files": [
     "src/",

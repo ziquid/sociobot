@@ -143,10 +143,10 @@ export async function sendLongMessage(message, content, debug = false, audioPath
  * Send a message to a channel with ACL footer
  * @param {Object} channel - Discord channel object to send to
  * @param {string} content - The message content to send
- * @param {number} acl - ACL value to use (default: 0)
+ * @param {number} acl -- ACL value to use (default: 1)
  * @returns {Promise<void>}
  */
-export async function sendChannelMessage(channel, content, acl = 0) {
+export async function sendChannelMessage(channel, content, acl = 1) {
   // Strip <think></think> tags before processing
   const cleanedContent = stripThinkTags(content);
   const chunks = splitMessage(cleanedContent);
@@ -170,10 +170,12 @@ export async function sendChannelMessage(channel, content, acl = 0) {
  * Send a webhook message with ACL footer
  * @param {Object} webhook - Discord webhook object
  * @param {string} content - The message content to send
- * @param {number} acl - ACL value to use (default: 0)
+ * @param {number} acl -- ACL value to use (default: 1)
+ * @param {string|null} username -- Optional username to display
+ * @param {string|null} avatarURL -- Optional avatar URL to display (shows headshot)
  * @returns {Promise<void>}
  */
-export async function sendWebhookMessage(webhook, content, acl = 0) {
+export async function sendWebhookMessage(webhook, content, acl = 1, username = null, avatarURL = null) {
   // Strip <think></think> tags before processing
   const cleanedContent = stripThinkTags(content);
   const chunks = splitMessage(cleanedContent);
@@ -186,9 +188,19 @@ export async function sendWebhookMessage(webhook, content, acl = 0) {
       .setDescription('\u200B')
       .setFooter({ text: createFooter(acl) });
 
-    await webhook.send({
+    const messageOptions = {
       content: prefix + chunk,
       embeds: [embed]
-    });
+    };
+
+    // Add username and avatar if provided (shows headshot)
+    if (username) {
+      messageOptions.username = username;
+    }
+    if (avatarURL) {
+      messageOptions.avatarURL = avatarURL;
+    }
+
+    await webhook.send(messageOptions);
   }
 }

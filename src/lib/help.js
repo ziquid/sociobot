@@ -10,7 +10,7 @@ export function showHelp() {
 Sociobot - Multi-Agent Discord Bot System
 
 USAGE:
-  node sociobot.js <agent-name> [options]
+  ./sociobot.js <agent-name> [options]
 
 EXECUTION PHASES:
   --no-monitoring, -1  Process backlog then exit (no real-time monitoring)
@@ -32,13 +32,13 @@ HELP:
   --help, -h           Show this help message
 
 EXAMPLES:
-  node sociobot.js mybot                     # Start bot normally
-  node sociobot.js mybot --no-monitoring     # Process missed messages once
-  node sociobot.js mybot --scope=dms         # Process only real DMs
-  node sociobot.js mybot --scope=botdms      # Process only bot-dms channel
-  node sociobot.js mybot --scope=text        # Process only guild text channels
-  node sociobot.js mybot --scope=dms,botdms  # Process DMs and bot-dms only
-  node sociobot.js mybot --debug             # Debug mode with verbose output
+  ./sociobot.js mybot                     # Start bot normally
+  ./sociobot.js mybot --no-monitoring     # Process missed messages once
+  ./sociobot.js mybot --scope=dms         # Process only real DMs
+  ./sociobot.js mybot --scope=botdms      # Process only bot-dms channel
+  ./sociobot.js mybot --scope=text        # Process only guild text channels
+  ./sociobot.js mybot --scope=dms,botdms  # Process DMs and bot-dms only
+  ./sociobot.js mybot --debug             # Debug mode with verbose output
 
 ENVIRONMENT:
   Each agent requires a .env.<agent-name> file with:

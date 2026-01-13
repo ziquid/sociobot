@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Get Discord bot application name for verification
@@ -44,8 +44,8 @@ process.env.DOTENV_CONFIG_QUIET = 'true';
 
 const botName = process.argv[2];
 if (!botName) {
-  console.error('Usage: node get-bot-name.js <bot-name>');
-  console.error('Example: node get-bot-name.js <bot-name>');
+  console.error('Usage: ./get-bot-name.js <bot-name>');
+  console.error('Example: ./get-bot-name.js <bot-name>');
   process.exit(1);
 }
 

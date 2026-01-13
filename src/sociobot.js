@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { showHelp } from './lib/help.js';
 import { readFileSync } from 'fs';
@@ -24,7 +24,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 const agentName = process.argv[2] || process.env.AGENT_NAME;
 if (!agentName) {
   console.error('Error: Agent name must be specified as first argument or AGENT_NAME environment variable');
-  console.error('Usage: node discord-bot.js <agent-name>');
+  console.error('Usage: ./sociobot.js <agent-name>');
   console.error('Use --help for more information');
   process.exit(1);
 }

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import dotenv from 'dotenv';
 import { execSync } from 'child_process';
@@ -9,8 +9,8 @@ const roleName = process.argv[2];
 const agentName = process.argv[3];
 
 if (!roleName || !agentName) {
-  console.error('Usage: node create-role.js <role-name> <admin-agent>');
-  console.error('Example: node create-role.js "Bot Role" "test-agent"');
+  console.error('Usage: ./create-role.js <role-name> <admin-agent>');
+  console.error('Example: ./create-role.js "Bot Role" "test-agent"');
   process.exit(1);
 }
 
@@ -72,7 +72,7 @@ client.once('clientReady', async (readyClient) => {
       });
       
       console.log(`✅ Created role: ${role.name} (${role.id})`);
-      console.log(`Use: node assign-role.js "${role.name}" all`);
+      console.log(`Use: ./assign-role.js "${role.name}" all`);
       
     } catch (error) {
       console.log(`❌ Failed to create role: ${error.message}`);

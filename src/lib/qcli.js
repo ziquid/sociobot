@@ -192,7 +192,7 @@ function logInteraction(agentName, data) {
   }
 }
 
-async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false) {
+async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null) {
   activeProcesses++;
 
   const isDM = channel.type === ChannelType.DM;
@@ -217,7 +217,9 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
   // Get list of members in the channel
   let members = '';
   if (isDM) {
-    members = channel.recipient?.username || '';
+    // For DMs, include both the agent and the recipient
+    const recipient = channel.recipient?.username || '';
+    members = [agentUsername, recipient].filter(Boolean).join(',');
   } else if (channel.guild) {
     // Use guild.members.cache (already fetched) and filter by channel permissions
     const cachedMembers = channel.guild.members.cache;
@@ -472,7 +474,7 @@ ${convertedContent}`;
       console.log(query);
     }
 
-    const response = await executeQCLI(query, agentName, message.author.username, channel, message.createdAt, currentACL, false, debug);
+    const response = await executeQCLI(query, agentName, message.author.username, channel, message.createdAt, currentACL, false, debug, message.client.user.username);
 
     // Log the Q CLI response
     logInteraction(agentName, {
@@ -588,7 +590,8 @@ export async function processBatchedMessages(messages, channel, agentName, debug
 
     // For batch processing, ACL is included per-message in the JSON file
     // Use 'batch' as a marker value for the environment variable
-    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date(), 'batch', true, debug);
+    const agentUsername = messages[0]?.client?.user?.username || null;
+    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date(), 'batch', true, debug, agentUsername);
 
     log(`Checking for output file: ${outputFile}`);
     log(`Output file exists: ${existsSync(outputFile)}`);
