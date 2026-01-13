@@ -1,6 +1,6 @@
 {
   "name": "sociobot",
-  "version": "0.1.1-rc.0",
+  "version": "0.1.1",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
   "main": "src/sociobot.js",
   "type": "module",
