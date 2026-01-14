@@ -14,10 +14,12 @@
     "start": "bun run src/sociobot.js",
     "dev": "bun --watch run src/sociobot.js",
     "test": "bash tests/test-bot.sh",
-    "build": "echo 'No build step required for sociobot'"
+    "build": "tsc",
+    "clean": "rm -rf dist"
   },
   "files": [
     "src/",
+    "dist/",
     "docs/",
     "LICENSE",
     "README.md"
@@ -43,5 +45,9 @@
     "discord.js": "^14.22.1",
     "dotenv": "^17.2.2",
     "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.8",
+    "typescript": "^5.9.3"
   }
 }
