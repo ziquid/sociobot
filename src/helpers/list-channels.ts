@@ -2,27 +2,49 @@
 
 /**
  * List all channels the bot has access to
- * Usage: ./list-channels.js <agent-name>
+ * Usage: list-channels [--discover-dms] [--debug]
  */
 
-import { Client, Events, GatewayIntentBits, ChannelType } from "discord.js";
-import { loadLastProcessedMessages } from "../lib/persistence.js";
-import { getConfig } from "../lib/config.js";
+import { Client, Events, GatewayIntentBits, ChannelType, TextChannel, DMChannel, VoiceChannel, CategoryChannel, ForumChannel, Guild, GuildChannel } from 'discord.js';
+import { loadLastProcessedMessages } from '../lib/persistence.js';
+import { getConfig } from '../lib/config.js';
 
-const agentName = process.argv[2];
-const DISCOVER_DMS = process.argv.includes('--discover-dms');
-const DEBUG = process.argv.includes('--debug');
+// Check for help option
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`
+List Channels - Display all Discord channels accessible to the bot
 
-if (!agentName) {
-  console.error('Usage: ./list-channels.js <agent-name> [--discover-dms] [--debug]');
-  console.error('Example: ./list-channels.js test-agent');
-  console.error('         ./list-channels.js test-agent --discover-dms');
-  console.error('         ./list-channels.js test-agent --debug');
+USAGE:
+  list-channels [options]
+
+OPTIONS:
+  --discover-dms    Attempt to discover DM channels
+  --debug          Show debug information
+  --help, -h       Show this help message
+
+EXAMPLES:
+  list-channels
+  list-channels --discover-dms
+  list-channels --debug
+
+NOTE:
+  Agent handle is read from ZDS_AI_AGENT_HANDLE environment variable
+`);
+  process.exit(0);
+}
+
+// Get agent handle from environment variable
+const agentHandle = process.env.ZDS_AI_AGENT_HANDLE;
+if (!agentHandle) {
+  console.error('Error: ZDS_AI_AGENT_HANDLE environment variable is not set');
   process.exit(1);
 }
 
+const DISCOVER_DMS = process.argv.includes('--discover-dms');
+const DEBUG = process.argv.includes('--debug');
+
 // Load configuration
-const config = getConfig(agentName);
+const config = getConfig(agentHandle);
 const DISCORD_TOKEN = config.discord.token;
 
 const client = new Client({
@@ -37,32 +59,41 @@ const client = new Client({
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Bot logged in as ${readyClient.user.tag}`);
   console.log("\n=== CHANNELS BOT HAS ACCESS TO ===\n");
-  
-  let lastMessages = {};
+
+  let lastMessages: Record<string, string> = {};
   if (DEBUG) {
-    lastMessages = loadLastProcessedMessages(agentName);
+    lastMessages = loadLastProcessedMessages(agentHandle);
   }
-  
-  const getDebugInfo = async (channelId, channel) => {
+
+  const getDebugInfo = async (channelId: string, channel: any): Promise<string> => {
     if (!DEBUG) return '';
     // Skip debug info for channels that don't support messages
     if (channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildVoice) {
       return '';
     }
+
+    // Type guard to check if channel supports messages
+    if (!('messages' in channel)) {
+      return '';
+    }
+
+    const messageChannel = channel as TextChannel | DMChannel;
     let info = '';
     if (lastMessages[channelId]) {
       try {
-        const lastMessage = await channel.messages.fetch(lastMessages[channelId]);
+        const lastMessage = await messageChannel.messages.fetch(lastMessages[channelId]);
         info = ` [Last: "${lastMessage.content.substring(0, 100)}"]`;
       } catch (error) {
         info = ` [Last: ${lastMessages[channelId]} - message not found]`;
       }
     } else {
       try {
-        const recentMessages = await channel.messages.fetch({ limit: 1 });
+        const recentMessages = await messageChannel.messages.fetch({ limit: 1 });
         if (recentMessages.size > 0) {
           const recent = recentMessages.first();
-          info = ` [Last: no data in persistence file, Recent: "${recent.content.substring(0, 100)}"]`;
+          if (recent) {
+            info = ` [Last: no data in persistence file, Recent: "${recent.content.substring(0, 100)}"]`;
+          }
         } else {
           info = ` [Last: no data in persistence file, no messages found]`;
         }
@@ -72,24 +103,32 @@ client.once(Events.ClientReady, async (readyClient) => {
     }
     return info;
   };
-  
-  const typeNames = {
+
+  const typeNames: Record<ChannelType, string> = {
     [ChannelType.GuildText]: 'TEXT',
     [ChannelType.GuildVoice]: 'VOICE',
     [ChannelType.GuildCategory]: 'CATEGORY',
     [ChannelType.DM]: 'DM',
-    [ChannelType.GuildForum]: 'FORUM'
+    [ChannelType.GuildForum]: 'FORUM',
+    [ChannelType.GroupDM]: 'GROUP_DM',
+    [ChannelType.GuildAnnouncement]: 'ANNOUNCEMENT',
+    [ChannelType.AnnouncementThread]: 'ANNOUNCEMENT_THREAD',
+    [ChannelType.PublicThread]: 'PUBLIC_THREAD',
+    [ChannelType.PrivateThread]: 'PRIVATE_THREAD',
+    [ChannelType.GuildStageVoice]: 'STAGE_VOICE',
+    [ChannelType.GuildDirectory]: 'DIRECTORY',
+    [ChannelType.GuildMedia]: 'MEDIA'
   };
-  
+
   // Show guild channels
   const guilds = readyClient.guilds.cache;
   for (const [guildId, guild] of guilds) {
     console.log(`Server: ${guild.name} (${guildId})`);
-    
-    const channels = guild.channels.cache.filter(channel => 
+
+    const channels = guild.channels.cache.filter(channel =>
       channel.permissionsFor(readyClient.user)?.has('ViewChannel')
     );
-    
+
     for (const [channelId, channel] of channels) {
       const typeName = typeNames[channel.type] || `TYPE_${channel.type}`;
       const debugInfo = await getDebugInfo(channelId, channel);
@@ -97,18 +136,20 @@ client.once(Events.ClientReady, async (readyClient) => {
     }
     console.log();
   }
-  
+
   // Show DM channels
-  const dmChannels = new Map();
-  
+  const dmChannels = new Map<string, DMChannel>();
+
   // Add cached DM channels
-  const cachedDMs = readyClient.channels.cache.filter(channel => 
+  const cachedDMs = readyClient.channels.cache.filter(channel =>
     channel.type === ChannelType.DM
   );
   for (const [id, channel] of cachedDMs) {
-    dmChannels.set(id, channel);
+    if (channel.type === ChannelType.DM) {
+      dmChannels.set(id, channel as DMChannel);
+    }
   }
-  
+
   // Fetch DM channels from configuration
   const knownDMChannels = config.discord.dmChannelIds;
   for (const channelId of knownDMChannels) {
@@ -116,14 +157,15 @@ client.once(Events.ClientReady, async (readyClient) => {
       try {
         const channel = await readyClient.channels.fetch(channelId);
         if (channel && channel.type === ChannelType.DM) {
-          dmChannels.set(channelId, channel);
+          dmChannels.set(channelId, channel as DMChannel);
         }
       } catch (error) {
-        console.log(`  Could not fetch DM channel ${channelId}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.log(`  Could not fetch DM channel ${channelId}: ${errorMessage}`);
       }
     }
   }
-  
+
   // Try to create DM with TEST_USER_ID if configured
   if (process.env.TEST_USER_ID) {
     try {
@@ -133,10 +175,11 @@ client.once(Events.ClientReady, async (readyClient) => {
         dmChannels.set(dmChannel.id, dmChannel);
       }
     } catch (error) {
-      console.log(`  Could not create DM with TEST_USER_ID: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`  Could not create DM with TEST_USER_ID: ${errorMessage}`);
     }
   }
-  
+
   // Discover DMs by attempting to create DM channels with server members
   if (DISCOVER_DMS) {
     console.log('\n🔍 Discovering DM channels...');
@@ -156,11 +199,12 @@ client.once(Events.ClientReady, async (readyClient) => {
           }
         }
       } catch (error) {
-        console.log(`  Error fetching members from ${guild.name}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.log(`  Error fetching members from ${guild.name}: ${errorMessage}`);
       }
     }
   }
-  
+
   if (dmChannels.size > 0) {
     console.log('Direct Messages:');
     for (const [channelId, channel] of dmChannels) {
@@ -169,7 +213,7 @@ client.once(Events.ClientReady, async (readyClient) => {
     }
     console.log();
   }
-  
+
   process.exit(0);
 });
 

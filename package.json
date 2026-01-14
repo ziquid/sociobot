@@ -6,8 +6,8 @@
   "type": "module",
   "bin": {
     "botctl": "src/bin/botctl",
-    "download-channel-history": "src/helpers/download-channel-history.js",
-    "list-channels": "src/helpers/list-channels.js",
+    "download-channel-history": "src/helpers/download-channel-history.ts",
+    "list-channels": "src/helpers/list-channels.ts",
     "sociobot": "src/sociobot.js"
   },
   "scripts": {
