@@ -1,13 +1,14 @@
 {
   "name": "sociobot",
-  "version": "0.1.2-alpha.1",
+  "version": "0.1.2-alpha.2",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
   "main": "src/sociobot.js",
   "type": "module",
   "bin": {
     "botctl": "src/bin/botctl",
-    "download-channel-history": "src/helpers/download-channel-history.ts",
-    "list-channels": "src/helpers/list-channels.ts",
+    "sb-download-channel-history": "dist/helpers/download-channel-history.js",
+    "sb-list-channels": "dist/helpers/list-channels.js",
+    "sb-send-message": "dist/helpers/send-message.js",
     "sociobot": "src/sociobot.js"
   },
   "scripts": {

@@ -16,3 +16,7 @@
    - [✅] download-channel-history.js
    - [✅] list-channels.js
    - [  ] more...
+- [✅] Add sb- prefix to helper bin entries
+   - [✅] sb-send-message
+   - [✅] sb-download-channel-history
+   - [✅] sb-list-channels
