@@ -3,10 +3,9 @@
 import { chdir } from 'process';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-import { execSync } from 'child_process';
-import { existsSync, writeFileSync } from 'fs';
+import { writeFileSync } from 'fs';
 import { Client, Events, GatewayIntentBits, ChannelType, Partials, Message, TextChannel, DMChannel, Embed, Channel } from 'discord.js';
+import { getConfig } from '../lib/config.js';
 
 // Change to script directory so it can be called from anywhere
 const __filename = fileURLToPath(import.meta.url);
@@ -97,25 +96,9 @@ const limit = limitIndex !== -1 ? parseInt(process.argv[limitIndex + 1]) : 1000;
 const outputIndex = process.argv.indexOf('--output');
 const outputFile = outputIndex !== -1 ? process.argv[outputIndex + 1] : null;
 
-// Load agent-specific .env file
-// Resolve agent home directory
-const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
-                execSync(`echo ~${agentHandle}`).toString().trim();
-const envPath = `${homeDir}/.env`;
-
-if (!existsSync(envPath)) {
-  console.error(`Error: Environment file not found: ${envPath}`);
-  process.exit(1);
-}
-
-process.env.DOTENV_CONFIG_QUIET = 'true';
-dotenv.config({ path: envPath, quiet: true });
-
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-if (!DISCORD_TOKEN) {
-  console.error(`Error: DISCORD_TOKEN not found in ${envPath}`);
-  process.exit(1);
-}
+// Load configuration
+const config = getConfig(agentHandle);
+const DISCORD_TOKEN = config.discord.token;
 
 const client = new Client({
   intents: [
