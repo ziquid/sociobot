@@ -12,5 +12,5 @@ pack-and-copy pac pc: pack copy ## package, copy to $(BUN_PACKAGE_NAME_STRIPPED)
 	@:
 
 .PHONY: prigc
-prigc: prig copy ## build, reinstall globally, pack, and copy
+prigc: prig copy ## build, pack, reinstall globally, and copy
 	@:
