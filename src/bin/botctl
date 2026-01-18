@@ -105,8 +105,8 @@ get_mailbot_status() {
     else
       # Linux: read /proc/<pid>/environ
       [[ -f "/proc/$pid/environ" ]] || continue
-      # Use sudo to read environ when in container (processes run as different users)
-      if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+      # Use sudo to read environ when running as different user (processes run as different users)
+      if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
         sudo -u "$BOT_NAME" cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -q "ZDS_AI_AGENT_HANDLE=$BOT_NAME" || continue
       else
         [[ -r "/proc/$pid/environ" ]] || continue
@@ -187,9 +187,9 @@ start_single_bot() {
     log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
   fi
 
-  # Determine if we need to sudo (in Docker container running as zds-ai)
-  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
-    # In container: run as agent user via sudo, passing through API keys and system vars
+  # Determine if we need to sudo (when running as different user than target bot)
+  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+    # Run as agent user via sudo, passing through API keys and system vars
     local AGENT_HOME=~"$BOT_NAME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
       PATH=\"$PATH\" \
@@ -252,8 +252,8 @@ stop_single_bot() {
 
   log_message "🛑 Stopping $BOT_NAME bot..."
 
-  # Use sudo when in container to kill processes owned by agent user
-  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+  # Use sudo when running as different user to kill processes owned by agent user
+  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
     sudo -u "$BOT_NAME" pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
   else
     pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
@@ -262,7 +262,7 @@ stop_single_bot() {
 
   if is_bot_running "$BOT_NAME"; then
     log_message "⚠️  $BOT_NAME bot still running, force killing..."
-    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
       sudo -u "$BOT_NAME" pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
     else
       pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
@@ -298,9 +298,9 @@ start_single_mailbot() {
     log_message "🐛 Starting $BOT_NAME mailbot in DEBUG mode"
   fi
 
-  # Determine if we need to sudo (in Docker container running as zds-ai)
-  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
-    # In container: run as agent user via sudo
+  # Determine if we need to sudo (when running as different user than target bot)
+  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+    # Run as agent user via sudo
     local AGENT_HOME=~"$BOT_NAME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
       PATH=\"$PATH\" \
@@ -344,8 +344,8 @@ stop_single_mailbot() {
 
   log_message "🛑 Stopping $BOT_NAME mailbot..."
 
-  # Use sudo when in container to kill processes owned by agent user
-  if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+  # Use sudo when running as different user to kill processes owned by agent user
+  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
     sudo -u "$BOT_NAME" pkill -f mailbot 2>/dev/null || true
     sleep 1
   else
@@ -356,7 +356,7 @@ stop_single_mailbot() {
   # Force kill if still running
   if is_mailbot_running "$BOT_NAME"; then
     log_message "⚠️  Mailbot still running, force killing..."
-    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
       sudo -u "$BOT_NAME" pkill -9 -f mailbot 2>/dev/null || true
     else
       pkill -9 -f mailbot 2>/dev/null || true
@@ -434,7 +434,13 @@ stop_all_bots() {
 
   # Kill all sociobot processes
   if [[ ${#SOCIOBOT_BOTS[@]} -gt 0 ]]; then
-    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    # Check if we need sudo by checking if any bot user exists and differs from current user
+    local need_sudo=false
+    for BOT in "${SOCIOBOT_BOTS[@]}"; do
+      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+    done
+
+    if $need_sudo; then
       for BOT in "${SOCIOBOT_BOTS[@]}"; do
         sudo -u "$BOT" pkill -f "sociobot $BOT" 2>/dev/null || true
       done
@@ -445,7 +451,13 @@ stop_all_bots() {
 
   # Kill all mailbot processes
   if [[ ${#MAILBOT_BOTS[@]} -gt 0 ]]; then
-    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    # Check if we need sudo by checking if any bot user exists and differs from current user
+    local need_sudo=false
+    for BOT in "${MAILBOT_BOTS[@]}"; do
+      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+    done
+
+    if $need_sudo; then
       for BOT in "${MAILBOT_BOTS[@]}"; do
         sudo -u "$BOT" pkill -f mailbot 2>/dev/null || true
       done
@@ -459,7 +471,13 @@ stop_all_bots() {
   # Verify they're stopped and force kill if needed
   if pgrep -f "sociobot" > /dev/null; then
     log_message "⚠️  Some sociobots still running, force killing..."
-    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    # Check if we need sudo
+    local need_sudo=false
+    for BOT in "${SOCIOBOT_BOTS[@]}"; do
+      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+    done
+
+    if $need_sudo; then
       for BOT in "${SOCIOBOT_BOTS[@]}"; do
         sudo -u "$BOT" pkill -9 -f "sociobot $BOT" 2>/dev/null || true
       done
@@ -470,7 +488,13 @@ stop_all_bots() {
 
   if pgrep -f mailbot > /dev/null; then
     log_message "⚠️  Some mailbots still running, force killing..."
-    if [[ -f /.dockerenv && "$USERNAME" == zds-ai ]]; then
+    # Check if we need sudo
+    local need_sudo=false
+    for BOT in "${MAILBOT_BOTS[@]}"; do
+      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+    done
+
+    if $need_sudo; then
       for BOT in "${MAILBOT_BOTS[@]}"; do
         sudo -u "$BOT" pkill -9 -f mailbot 2>/dev/null || true
       done
