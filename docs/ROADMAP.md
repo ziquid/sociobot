@@ -16,7 +16,10 @@
    - [✅] download-channel-history.js
    - [✅] list-channels.js
    - [  ] more...
-- [✅] Add sb- prefix to helper bin entries
+- [🔘] Add sb- prefix to helper bin entries
    - [✅] sb-send-message
    - [✅] sb-download-channel-history
    - [✅] sb-list-channels
+   - [  ] more...
+- [✅] Enable botctl sudo for per-agent user accounts on host
+- [  ] Scope package as @zds-ai/sociobot
