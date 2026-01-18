@@ -22,4 +22,4 @@
    - [✅] sb-list-channels
    - [  ] more...
 - [✅] Enable botctl sudo for per-agent user accounts on host
-- [  ] Scope package as @zds-ai/sociobot
+- [✅] Scope package as @zds-ai/sociobot
