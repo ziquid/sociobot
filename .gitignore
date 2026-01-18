@@ -25,3 +25,4 @@ data/servers/*.json
 .grok/
 voice-message.txt
 sociobot*.tgz
+zds-ai-sociobot*.tgz
