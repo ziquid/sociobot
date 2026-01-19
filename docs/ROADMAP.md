@@ -15,11 +15,30 @@
    - [✅] send-message.js
    - [✅] download-channel-history.js
    - [✅] list-channels.js
-   - [  ] more...
 - [🔘] Add sb- prefix to helper bin entries
    - [✅] sb-send-message
    - [✅] sb-download-channel-history
    - [✅] sb-list-channels
-   - [  ] more...
-- [✅] Enable botctl sudo for per-agent user accounts on host
+- [🔘] Enable botctl sudo for per-agent user accounts on host
+   - [  ] *Except* `bot`
 - [✅] Scope package as @zds-ai/sociobot
+
+### New Functionality
+
+- [  ] Add support for SYNTHETIC_API_KEY and OLLAMA_HOST vars
+
+
+## Version 0.1.3
+
+### Technical Debt
+
+- [  ] Convert helper scripts to TypeScript
+   - [  ] list goes here
+
+- [  ] Add sb- prefix to helper bin entries
+   - [  ] list goes here
+
+### New Functionality
+
+- [  ] Add SKILLS for helper scripts
+   - [  ] list goes here
