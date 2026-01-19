@@ -6,6 +6,7 @@
   "type": "module",
   "bin": {
     "botctl": "src/bin/botctl",
+    "sb-create-webhooks": "dist/helpers/create-webhooks.js",
     "sb-download-channel-history": "dist/helpers/download-channel-history.js",
     "sb-list-channels": "dist/helpers/list-channels.js",
     "sb-send-message": "dist/helpers/send-message.js",

@@ -15,13 +15,16 @@
    - [✅] send-message.js
    - [✅] download-channel-history.js
    - [✅] list-channels.js
+   - [✅] create-webhooks.js
 - [🔘] Add sb- prefix to helper bin entries
    - [✅] sb-send-message
    - [✅] sb-download-channel-history
    - [✅] sb-list-channels
+   - [✅] sb-create-webhooks
 - [🔘] Enable botctl sudo for per-agent user accounts on host
    - [  ] *Except* `bot`
 - [✅] Scope package as @zds-ai/sociobot
+- [✅] Enable `sb-create-webhooks` to discover all agents with sociobot profiles automatically
 
 ### New Functionality
 
