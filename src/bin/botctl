@@ -206,9 +206,11 @@ start_single_bot() {
       MORPH_API_KEY=\"$MORPH_API_KEY\" \
       NANOGPT_API_KEY=\"$NANOGPT_API_KEY\" \
       OLLAMA_API_KEY=\"$OLLAMA_API_KEY\" \
+      OLLAMA_HOST=\"$OLLAMA_HOST\" \
       OPENAI_API_KEY=\"$OPENAI_API_KEY\" \
       OPENROUTER_API_KEY=\"$OPENROUTER_API_KEY\" \
       PLANO_API_KEY=\"$PLANO_API_KEY\" \
+      SYNTHETIC_API_KEY=\"$SYNTHETIC_API_KEY\" \
       VENICE_API_KEY=\"$VENICE_API_KEY\" \
       ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
       ZDS_AI_CLIENT_ID=\"$ZDS_AI_CLIENT_ID\" \
@@ -224,6 +226,7 @@ start_single_bot() {
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       ${TZ:+TZ="$TZ"} \
       CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
+      OLLAMA_HOST="$OLLAMA_HOST" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       ZDS_AI_TTS_ENDPOINT="$ZDS_AI_TTS_ENDPOINT" \
       ZDS_AI_TTS_USER="$ZDS_AI_TTS_USER" \
@@ -307,6 +310,7 @@ start_single_mailbot() {
       HOME=\"$AGENT_HOME\" \
       LANG=\"${LANG:-en_US.UTF-8}\" \
       ${TZ:+TZ=\"$TZ\"} \
+      OLLAMA_HOST=\"$OLLAMA_HOST\" \
       ZDS_AI_AGENT_HANDLE=\"$BOT_NAME_VAR\" \
       ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
       ZDS_AI_AGENT_LOGS_DIR=\"$LOGS_DIR\" \
@@ -316,6 +320,7 @@ start_single_mailbot() {
     # On host or shared user: run as current user
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       ${TZ:+TZ="$TZ"} \
+      OLLAMA_HOST="$OLLAMA_HOST" \
       ZDS_AI_AGENT_HANDLE="$BOT_NAME_VAR" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       ZDS_AI_AGENT_LOGS_DIR="$LOGS_DIR" \
