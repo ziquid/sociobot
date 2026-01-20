@@ -3,17 +3,41 @@
 import { chdir } from 'process';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { writeFileSync } from 'fs';
+import { Client, Events, GatewayIntentBits, ChannelType, Partials, Message, TextChannel, DMChannel, Embed, Channel } from 'discord.js';
+import { getConfig } from '../lib/config.js';
 
 // Change to script directory so it can be called from anywhere
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const originalCwd = process.cwd();
 chdir(__dirname);
-import { Client, Events, GatewayIntentBits, ChannelType, Partials } from "discord.js";
-import { writeFileSync } from 'fs';
+
+// Type definitions
+interface EmbedInfo {
+  title: string | null;
+  description: string | null;
+  footer: string | null;
+  color: number | null;
+  fields: { name: string; value: string }[];
+}
+
+interface FormattedMessageJSON {
+  id: string;
+  timestamp: string;
+  author: {
+    id: string;
+    username: string;
+    bot: boolean;
+  };
+  content: string;
+  attachments: { name: string; url: string }[];
+  embeds: EmbedInfo[];
+  reactions: number;
+  reference: string | null;
+}
+
+type FormattedMessage = FormattedMessageJSON | string;
 
 // Check for help option
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
@@ -21,7 +45,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 Download Channel History - Export Discord channel messages to flat files
 
 USAGE:
-  ./download-channel-history.js <agent-name> <channel-id> [options]
+  download-channel-history <channel-id> [options]
 
 OPTIONS:
   --format <format>    Output format: json, text, markdown (default: json)
@@ -30,25 +54,34 @@ OPTIONS:
   --help, -h          Show this help message
 
 EXAMPLES:
-  ./download-channel-history.js mybot 123456789 --format json
-  ./download-channel-history.js mybot 123456789 --format markdown --limit 500
-  ./download-channel-history.js mybot 123456789 --output channel-export.txt
+  download-channel-history 123456789 --format json
+  download-channel-history 123456789 --format markdown --limit 500
+  download-channel-history 123456789 --output channel-export.txt
 
 FORMATS:
   json      - Structured JSON with full message data
   text      - Plain text with timestamps and usernames
   markdown  - Markdown formatted with headers and code blocks
+
+NOTE:
+  Agent handle is read from ZDS_AI_AGENT_HANDLE environment variable
 `);
   process.exit(0);
 }
 
-// Parse arguments
-const agentName = process.argv[2];
-const channelId = process.argv[3];
+// Get agent handle from environment variable
+const agentHandle = process.env.ZDS_AI_AGENT_HANDLE;
+if (!agentHandle) {
+  console.error('Error: ZDS_AI_AGENT_HANDLE environment variable is not set');
+  process.exit(1);
+}
 
-if (!agentName || !channelId) {
-  console.error('Error: Agent name and channel ID are required');
-  console.error('Usage: ./download-channel-history.js <agent-name> <channel-id>');
+// Parse arguments
+const channelId = process.argv[2];
+
+if (!channelId) {
+  console.error('Error: Channel ID is required');
+  console.error('Usage: download-channel-history <channel-id>');
   console.error('Use --help for more information');
   process.exit(1);
 }
@@ -63,25 +96,9 @@ const limit = limitIndex !== -1 ? parseInt(process.argv[limitIndex + 1]) : 1000;
 const outputIndex = process.argv.indexOf('--output');
 const outputFile = outputIndex !== -1 ? process.argv[outputIndex + 1] : null;
 
-// Load agent-specific .env file
-// Resolve agent home directory
-const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
-                execSync(`echo ~${agentName}`).toString().trim();
-const envPath = `${homeDir}/.env`;
-
-if (!existsSync(envPath)) {
-  console.error(`Error: Environment file not found: ${envPath}`);
-  process.exit(1);
-}
-
-process.env.DOTENV_CONFIG_QUIET = 'true';
-dotenv.config({ path: envPath, quiet: true });
-
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-if (!DISCORD_TOKEN) {
-  console.error(`Error: DISCORD_TOKEN not found in ${envPath}`);
-  process.exit(1);
-}
+// Load configuration
+const config = getConfig(agentHandle);
+const DISCORD_TOKEN = config.discord.token;
 
 const client = new Client({
   intents: [
@@ -94,13 +111,13 @@ const client = new Client({
 });
 
 // Format message data
-function formatMessage(message, format) {
+function formatMessage(message: Message, format: string): FormattedMessage {
   const timestamp = message.createdAt.toISOString();
   const author = message.author.username;
   const content = message.content || '[No content]';
 
   // Extract embed information
-  const embedInfo = message.embeds.map(embed => ({
+  const embedInfo: EmbedInfo[] = message.embeds.map(embed => ({
     title: embed.title || null,
     description: embed.description || null,
     footer: embed.footer?.text || null,
@@ -119,7 +136,7 @@ function formatMessage(message, format) {
           bot: message.author.bot
         },
         content,
-        attachments: message.attachments.map(a => ({ name: a.name, url: a.url })),
+        attachments: message.attachments.map(a => ({ name: a.name || 'unknown', url: a.url })),
         embeds: embedInfo,
         reactions: message.reactions.cache.size,
         reference: message.reference?.messageId || null
@@ -152,7 +169,7 @@ function formatMessage(message, format) {
 }
 
 // Generate output filename
-function generateFilename(channelName, format) {
+function generateFilename(channelName: string, format: string): string {
   if (outputFile) return outputFile;
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -163,83 +180,97 @@ function generateFilename(channelName, format) {
 }
 
 // Download channel history
-async function downloadChannelHistory() {
+async function downloadChannelHistory(): Promise<void> {
   try {
     console.log(`Fetching channel ${channelId}...`);
     const channel = await client.channels.fetch(channelId);
-    
+
     if (!channel) {
       console.error(`Channel ${channelId} not found or not accessible`);
       process.exit(1);
     }
-    
-    console.log(`Channel: ${channel.name || 'DM'} (${channel.type === ChannelType.DM ? 'DM' : 'Guild'})`);
+
+    // Type guard to check if channel supports messages
+    if (!('messages' in channel)) {
+      console.error(`Channel ${channelId} does not support messages`);
+      process.exit(1);
+    }
+
+    const messageChannel = channel as TextChannel | DMChannel;
+    const channelName = messageChannel.type === ChannelType.DM ? 'DM' : (messageChannel as TextChannel).name;
+
+    console.log(`Channel: ${channelName} (${channel.type === ChannelType.DM ? 'DM' : 'Guild'})`);
     console.log(`Downloading up to ${limit} messages in ${format} format...`);
-    
-    const messages = [];
-    let lastId = null;
+
+    const messages: Message[] = [];
+    let lastId: string | undefined = undefined;
     let fetched = 0;
-    
+
     while (fetched < limit) {
       const fetchLimit = Math.min(100, limit - fetched);
-      const fetchOptions = { limit: fetchLimit };
+      const fetchOptions: { limit: number; before?: string } = { limit: fetchLimit };
       if (lastId) fetchOptions.before = lastId;
-      
-      const batch = await channel.messages.fetch(fetchOptions);
+
+      const batch = await messageChannel.messages.fetch(fetchOptions);
       if (batch.size === 0) break;
-      
+
       const batchArray = Array.from(batch.values());
       messages.push(...batchArray);
       fetched += batch.size;
       lastId = batchArray[batchArray.length - 1].id;
-      
+
       console.log(`Fetched ${fetched} messages...`);
     }
-    
+
     // Sort messages chronologically (oldest first)
     messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-    
+
     // Format messages
     const formattedMessages = messages.map(msg => formatMessage(msg, format));
-    
+
     // Generate output
-    let output;
+    let output: string;
     if (format === 'json') {
+      const jsonChannelName = messageChannel.type === ChannelType.DM ? 'DM' : (messageChannel as TextChannel).name;
       output = JSON.stringify({
         channel: {
-          id: channel.id,
-          name: channel.name || 'DM',
-          type: channel.type
+          id: messageChannel.id,
+          name: jsonChannelName,
+          type: messageChannel.type
         },
         exportedAt: new Date().toISOString(),
         messageCount: formattedMessages.length,
         messages: formattedMessages
       }, null, 2);
     } else if (format === 'markdown') {
-      output = `# Channel Export: ${channel.name || 'DM'}\n\n`;
-      output += `**Channel ID:** ${channel.id}\n`;
+      const markdownChannelName = messageChannel.type === ChannelType.DM ? 'DM' : (messageChannel as TextChannel).name;
+      output = `# Channel Export: ${markdownChannelName}\n\n`;
+      output += `**Channel ID:** ${messageChannel.id}\n`;
       output += `**Exported:** ${new Date().toISOString()}\n`;
       output += `**Message Count:** ${formattedMessages.length}\n\n---\n\n`;
       output += formattedMessages.join('\n');
     } else {
-      output = `Channel: ${channel.name || 'DM'} (${channel.id})\n`;
+      const textChannelName = messageChannel.type === ChannelType.DM ? 'DM' : (messageChannel as TextChannel).name;
+      output = `Channel: ${textChannelName} (${messageChannel.id})\n`;
       output += `Exported: ${new Date().toISOString()}\n`;
       output += `Message Count: ${formattedMessages.length}\n\n`;
       output += formattedMessages.join('\n');
     }
-    
+
     // Write to file in original directory
-    const filename = generateFilename(channel.name || 'dm', format);
+    const filenameChannelName = messageChannel.type === ChannelType.DM ? 'dm' : (messageChannel as TextChannel).name;
+    const filename = generateFilename(filenameChannelName, format);
     const fullPath = `${originalCwd}/${filename}`;
     writeFileSync(fullPath, output, 'utf8');
-    
+
     console.log(`\nExport complete!`);
     console.log(`File: ${filename}`);
     console.log(`Messages: ${formattedMessages.length}`);
     console.log(`Format: ${format}`);
-    
+
   } catch (error) {
-    console.error(`Error downloading channel history: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`Error downloading channel history: ${errorMessage}`);
     process.exit(1);
   } finally {
     client.destroy();
