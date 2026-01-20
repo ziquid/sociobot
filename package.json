@@ -1,6 +1,6 @@
 {
   "name": "@zds-ai/sociobot",
-  "version": "0.1.2-alpha.2",
+  "version": "0.1.2",
   "description": "Sociobot -- Multi-Agent Discord Bot System",
   "main": "src/sociobot.js",
   "type": "module",
