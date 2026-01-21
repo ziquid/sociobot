@@ -98,7 +98,7 @@ chmod 600 ~<bot-name>/.env
 ### 4.1 Create Bot Webhook
 ```bash
 # Create webhook for main channel (e.g., #bot-testing)
-node create-webhooks.js <channel-id>
+sb-create-webhooks <channel-id>
 ```
 
 ### 4.2 Update Environment File
