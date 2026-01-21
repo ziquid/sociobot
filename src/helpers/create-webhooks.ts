@@ -58,7 +58,7 @@ function discoverSociobotAgents(): BotConfig[] {
     throw new Error('ZDS_AI_HOST_ID environment variable not set');
   }
 
-  console.log(`🔍 Discovering sociobot agents for host: ${hostId}`);
+  console.log(`Discovering sociobot agents for host: ${hostId}`);
 
   // Get all agents
   const allAgentsOutput = execSync('zai lc', { encoding: 'utf8' });
@@ -99,9 +99,9 @@ function discoverSociobotAgents(): BotConfig[] {
         displayName
       });
 
-      console.log(`  ✓ Found: ${agent} (${displayName})`);
+      console.log(`  Found: ${agent} (${displayName})`);
     } catch (error) {
-      console.warn(`  ⚠ Warning: Could not read config for ${agent}: ${(error as Error).message}`);
+      console.warn(`  Warning: Could not read config for ${agent}: ${(error as Error).message}`);
     }
   }
 
@@ -109,13 +109,13 @@ function discoverSociobotAgents(): BotConfig[] {
     throw new Error(`No sociobot agents found for host ${hostId}`);
   }
 
-  console.log(`✅ Discovered ${sociobotAgents.length} sociobot agent(s)\n`);
+  console.log(`Discovered ${sociobotAgents.length} sociobot agent(s)\n`);
   return sociobotAgents;
 }
 
 async function createWebhooks(channelId: string, targetBot?: string): Promise<void> {
-  console.log('🔧 Discord Webhook Creator Starting...');
-  console.log(`📍 Target Channel ID: ${channelId}`);
+  console.log('Discord Webhook Creator Starting...');
+  console.log(`Target Channel ID: ${channelId}`);
 
   // Discover bots with sociobot profiles
   const allBots = discoverSociobotAgents();
@@ -125,12 +125,12 @@ async function createWebhooks(channelId: string, targetBot?: string): Promise<vo
   if (targetBot) {
     botsToCreate = allBots.filter(bot => bot.name === targetBot);
     if (botsToCreate.length === 0) {
-      console.error(`❌ Bot '${targetBot}' not found. Available bots: ${allBots.map(b => b.name).join(', ')}`);
+      console.error(`Error: Bot '${targetBot}' not found. Available bots: ${allBots.map(b => b.name).join(', ')}`);
       process.exit(1);
     }
-    console.log(`📌 Creating webhook only for: ${targetBot}`);
+    console.log(`Creating webhook only for: ${targetBot}`);
   } else {
-    console.log(`📌 Creating webhooks for all ${allBots.length} bot(s)`);
+    console.log(`Creating webhooks for all ${allBots.length} bot(s)`);
   }
 
   // Use admin bot's token for webhook creation (admin privileges)
@@ -153,19 +153,19 @@ async function createWebhooks(channelId: string, targetBot?: string): Promise<vo
     }
 
     await client.login(tokenMatch[1]);
-    console.log('✅ Connected to Discord');
+    console.log('Connected to Discord');
 
     const channel = await client.channels.fetch(channelId);
     if (!channel || !(channel instanceof TextChannel)) {
       throw new Error(`Channel ${channelId} not found or is not a text channel`);
     }
 
-    console.log(`📢 Creating webhooks in channel: ${channel.name}`);
+    console.log(`Creating webhooks in channel: ${channel.name}`);
 
     const webhookResults: WebhookResult[] = [];
 
     for (const bot of botsToCreate) {
-      console.log(`\n🤖 Creating webhook for ${bot.name}...`);
+      console.log(`\nCreating webhook for ${bot.name}...`);
 
       try {
         const webhook = await channel.createWebhook({
@@ -182,7 +182,7 @@ async function createWebhooks(channelId: string, targetBot?: string): Promise<vo
 
         webhookResults.push(result);
 
-        console.log(`✅ ${bot.name} webhook created:`);
+        console.log(`${bot.name} webhook created:`);
         console.log(`   ID: ${webhook.id}`);
         console.log(`   Token: ${webhook.token!.substring(0, 20)}...`);
 
@@ -190,19 +190,19 @@ async function createWebhooks(channelId: string, targetBot?: string): Promise<vo
         await updateEnvFile(bot.name, result);
 
       } catch (error) {
-        console.error(`❌ Failed to create webhook for ${bot.name}:`, (error as Error).message);
+        console.error(`Failed to create webhook for ${bot.name}:`, (error as Error).message);
       }
     }
 
     // Create documentation
     await createWebhookDocumentation(webhookResults, channelId);
 
-    console.log('\n🎉 Webhook creation complete!');
-    console.log('📋 Documentation saved to WEBHOOKS.md');
-    console.log('⚠️  Remember to restart all bots to use new webhooks');
+    console.log('\nWebhook creation complete!');
+    console.log('Documentation saved to WEBHOOKS.md');
+    console.log('Remember to restart all bots to use new webhooks');
 
   } catch (error) {
-    console.error('❌ Webhook creation failed:', (error as Error).message);
+    console.error('Webhook creation failed:', (error as Error).message);
     process.exit(1);
   } finally {
     await client.destroy();
@@ -227,10 +227,10 @@ async function updateEnvFile(botName: string, webhookData: WebhookResult): Promi
     envContent = envContent.replace(/WEBHOOK_TOKEN=.*/, `WEBHOOK_TOKEN=${webhookData.webhookToken}`);
 
     writeFileSync(envPath, envContent);
-    console.log(`   📝 Updated ${envPath}`);
+    console.log(`   Updated ${envPath}`);
 
   } catch (error) {
-    console.error(`   ❌ Failed to update ${envPath}:`, (error as Error).message);
+    console.error(`   Failed to update ${envPath}:`, (error as Error).message);
   }
 }
 
