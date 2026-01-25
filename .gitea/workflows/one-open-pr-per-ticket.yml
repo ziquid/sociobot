@@ -1,0 +1,39 @@
+name: One open PR per ticket
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close PR if another open PR exists for same ticket
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          API="${{ gitea.server_url }}/api/v1"
+          OWNER="${{ gitea.repository.owner }}"
+          REPO="${{ gitea.repository.name }}"
+          PR_INDEX="${{ gitea.event.pull_request.index }}"
+          HEAD_REF="${{ gitea.event.pull_request.head.ref }}"
+
+          # Ticket = digits after "feature/" (feature/123-foo -> 123)
+          TICKET=$(printf '%s' "$HEAD_REF" | sed -n 's|^feature/\([0-9][0-9]*\)-.*|\1|p')
+          [ -z "$TICKET" ] && exit 0
+
+          # Find another OPEN PR with same ticket in head branch name
+          PRS=$(curl -s -H "Authorization: token $GITEA_TOKEN" \
+            "$API/repos/$OWNER/$REPO/pulls?state=open&limit=50&page=1")
+
+          DUP=$(echo "$PRS" | jq -r --arg t "$TICKET" --argjson me "$PR_INDEX" '
+            .[]
+            | select(.number != $me)
+            | select((.head.ref // "") | test("^feature/" + $t + "-"))
+            | .number
+          ' | head -n1)
+
+          [ -z "$DUP" ] && exit 0
+
+          echo "Duplicate ticket PR: ticket $TICKET already has open PR #$DUP"
+          exit 1
