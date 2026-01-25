@@ -1,0 +1,51 @@
+name: Ensure ZDSCS Attribution
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  ensure-attribution:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure ZDSCS attribution in PR body
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          ZDS_ATTR: "⚡️ Powered by ZDS AI Agents"
+          AI_DOMAIN: "@ai.zds.group"
+        run: |
+          PR_INDEX="${{ gitea.event.pull_request.index }}"
+          OWNER="${{ gitea.repository.owner }}"
+          REPO="${{ gitea.repository.name }}"
+          API="${{ gitea.server_url }}/api/v1"
+
+          PR_JSON=$(curl -s \
+            -H "Authorization: token $GITEA_TOKEN" \
+            "$API/repos/$OWNER/$REPO/pulls/$PR_INDEX")
+
+          BODY=$(echo "$PR_JSON" | jq -r '.body // ""')
+
+          echo "$BODY" | grep -Fq "$ZDS_ATTR" && exit 0
+
+          HAS_AI=0
+          COMMITS=$(curl -s \
+            -H "Authorization: token $GITEA_TOKEN" \
+            "$API/repos/$OWNER/$REPO/pulls/$PR_INDEX/commits")
+
+          echo "$COMMITS" \
+            | jq -r '.[].commit.author.email, .[].commit.committer.email' \
+            | grep -q "$AI_DOMAIN" && HAS_AI=1
+
+          NEW_BODY="$ZDS_ATTR"
+
+          if [ "$HAS_AI" -eq 1 ]; then
+            NEW_BODY="$NEW_BODY\n\nCo-Authored-By: ZDS AI Agent <agent@ai.zds.group>"
+          fi
+
+          NEW_BODY="$NEW_BODY\n\n$BODY"
+
+          curl -s -X PATCH \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg body "$NEW_BODY" '{body:$body}')" \
+            "$API/repos/$OWNER/$REPO/pulls/$PR_INDEX" >/dev/null
