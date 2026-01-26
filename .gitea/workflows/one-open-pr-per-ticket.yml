@@ -13,8 +13,8 @@ jobs:
           ZDS_ACTIONS_TOKEN: ${{ secrets.ZDS_ACTIONS_TOKEN }}
         run: |
           API="${{ gitea.server_url }}/api/v1"
-          OWNER="${{ gitea.repository.owner }}"
-          REPO="${{ gitea.repository.name }}"
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          REPO="${GITHUB_REPOSITORY#*/}"
           PR_INDEX="${{ gitea.event.pull_request.index }}"
           HEAD_REF="${{ gitea.event.pull_request.head.ref }}"
 
