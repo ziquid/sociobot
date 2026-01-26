@@ -76,9 +76,14 @@ jobs:
               NEW_BODY="$(printf '%s\n' "$ZDS_ATTR")"
             fi
 
-            printf '%s\n' "$AI_COAUTHORS" | while IFS= read -r ident; do
-              [ -n "$ident" ] && NEW_BODY="$(printf '%sCo-Authored-By: %s\n' "$NEW_BODY" "$ident")"
-            done
+            # Append one Co-Authored-By line per unique AI identity (if any)
+            if [ -n "$AI_COAUTHORS" ]; then
+              while IFS= read -r ident; do
+                [ -n "$ident" ] && NEW_BODY="$(printf '%sCo-Authored-By: `%s`\n' "$NEW_BODY" "$ident")"
+              done <<EOF
+            $AI_COAUTHORS
+            EOF
+            fi
           fi
 
           [ "$NEW_BODY" = "$BODY" ] && exit 0
