@@ -45,6 +45,10 @@ jobs:
           # Strip any existing Claude Co-Authored-By lines (by email)
           NEW_BODY=$(printf '%s' "$NEW_BODY" | sed -E '/^[[:space:]]*Co-Authored-By: .*<[^>]*@(anthropic\.com|claude\.ai)>[[:space:]]*$/Id')
 
+          # Strip "Generated with Claude Code" attribution
+          NEW_BODY=$(printf '%s' "$NEW_BODY" \
+            | sed -E '/^[[:space:]]*🤖 Generated with \[Claude Code\]\(https:\/\/claude\.com\/claude-code\)[[:space:]]*$/d')
+
           # Build unique Co-Authored-By lines for every AI agent in the PR commits
           AI_COAUTHORS=$(echo "$COMMITS" | jq -r '
             .[]
