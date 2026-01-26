@@ -31,7 +31,7 @@ jobs:
 
           DUP=$(echo "$PRS" | jq -r --arg t "$TICKET" --arg me "$PR_INDEX" '
             .[]
-            | select((.id|tostring) != $me)
+            | select((.number|tostring) != $me)
             | select((.head.ref // "") | test("^feature/" + $t + "-"))
             | .number
           ' | head -n1)
