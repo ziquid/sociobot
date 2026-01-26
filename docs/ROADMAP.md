@@ -14,3 +14,8 @@
 
 - [  ] Add SKILLS for helper scripts
    - [  ] list goes here
+
+### Bugs Fixed
+
+- [✅] boctl check for sudo was incorrect
+- [  ]

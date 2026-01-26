@@ -81,6 +81,39 @@ get_load_int() {
   get_load_avg | cut -d . -f 1
 }
 
+bot_needs_sudo() {
+  # Check if bot needs sudo (matches logic from _zai_helper_agent_needs_sudo)
+  # Usage: bot_needs_sudo <bot_name>
+  # Returns: 0 (true) if bot needs sudo, 1 (false) otherwise
+  local bot_name="$1"
+
+  # Already $USERNAME? sudo not needed.
+  [[ "$bot_name" == "$USERNAME" ]] && return 1
+
+  # Bot handle is "bot"? sudo not needed.
+  [[ "$bot_name" == bot ]] && return 1
+
+  # No user account? sudo not needed.
+  id "$bot_name" &>/dev/null || return 1
+
+  # Bot needs sudo if ~<bot>/.zshrc is owned by bot user account.
+  local zshrc_file=~${bot_name}/.zshrc
+  [[ ! -f "$zshrc_file" ]] && return 1
+
+  # Get the owner of the .zshrc file
+  local file_owner
+  if [[ "$(uname)" == Darwin ]]; then
+    # macOS: use stat -f
+    file_owner=$(stat -f '%Su' "$zshrc_file" 2>/dev/null)
+  else
+    # Linux: use stat -c
+    file_owner=$(stat -c '%U' "$zshrc_file" 2>/dev/null)
+  fi
+
+  # Return true (0) if file owner matches bot name
+  [[ "$file_owner" == "$bot_name" ]]
+}
+
 get_bot_status() {
   declare -r BOT_NAME="$1"
 
@@ -106,7 +139,7 @@ get_mailbot_status() {
       # Linux: read /proc/<pid>/environ
       [[ -f "/proc/$pid/environ" ]] || continue
       # Use sudo to read environ when running as different user (processes run as different users)
-      if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+      if bot_needs_sudo "$BOT_NAME"; then
         sudo -u "$BOT_NAME" cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -q "ZDS_AI_AGENT_HANDLE=$BOT_NAME" || continue
       else
         [[ -r "/proc/$pid/environ" ]] || continue
@@ -188,7 +221,7 @@ start_single_bot() {
   fi
 
   # Determine if we need to sudo (when running as different user than target bot)
-  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+  if bot_needs_sudo "$BOT_NAME"; then
     # Run as agent user via sudo, passing through API keys and system vars
     local AGENT_HOME=~"$BOT_NAME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
@@ -256,7 +289,7 @@ stop_single_bot() {
   log_message "🛑 Stopping $BOT_NAME bot..."
 
   # Use sudo when running as different user to kill processes owned by agent user
-  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+  if bot_needs_sudo "$BOT_NAME"; then
     sudo -u "$BOT_NAME" pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
   else
     pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
@@ -265,7 +298,7 @@ stop_single_bot() {
 
   if is_bot_running "$BOT_NAME"; then
     log_message "⚠️  $BOT_NAME bot still running, force killing..."
-    if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+    if bot_needs_sudo "$BOT_NAME"; then
       sudo -u "$BOT_NAME" pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
     else
       pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
@@ -302,7 +335,7 @@ start_single_mailbot() {
   fi
 
   # Determine if we need to sudo (when running as different user than target bot)
-  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+  if bot_needs_sudo "$BOT_NAME"; then
     # Run as agent user via sudo
     local AGENT_HOME=~"$BOT_NAME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
@@ -350,7 +383,7 @@ stop_single_mailbot() {
   log_message "🛑 Stopping $BOT_NAME mailbot..."
 
   # Use sudo when running as different user to kill processes owned by agent user
-  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+  if bot_needs_sudo "$BOT_NAME"; then
     sudo -u "$BOT_NAME" pkill -f mailbot 2>/dev/null || true
     sleep 1
   else
@@ -361,7 +394,7 @@ stop_single_mailbot() {
   # Force kill if still running
   if is_mailbot_running "$BOT_NAME"; then
     log_message "⚠️  Mailbot still running, force killing..."
-    if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+    if bot_needs_sudo "$BOT_NAME"; then
       sudo -u "$BOT_NAME" pkill -9 -f mailbot 2>/dev/null || true
     else
       pkill -9 -f mailbot 2>/dev/null || true
@@ -439,10 +472,10 @@ stop_all_bots() {
 
   # Kill all sociobot processes
   if [[ ${#SOCIOBOT_BOTS[@]} -gt 0 ]]; then
-    # Check if we need sudo by checking if any bot user exists and differs from current user
+    # Check if we need sudo by checking if any bot needs sudo
     local need_sudo=false
     for BOT in "${SOCIOBOT_BOTS[@]}"; do
-      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+      bot_needs_sudo "$BOT" && need_sudo=true && break
     done
 
     if $need_sudo; then
@@ -456,10 +489,10 @@ stop_all_bots() {
 
   # Kill all mailbot processes
   if [[ ${#MAILBOT_BOTS[@]} -gt 0 ]]; then
-    # Check if we need sudo by checking if any bot user exists and differs from current user
+    # Check if we need sudo by checking if any bot needs sudo
     local need_sudo=false
     for BOT in "${MAILBOT_BOTS[@]}"; do
-      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+      bot_needs_sudo "$BOT" && need_sudo=true && break
     done
 
     if $need_sudo; then
@@ -479,7 +512,7 @@ stop_all_bots() {
     # Check if we need sudo
     local need_sudo=false
     for BOT in "${SOCIOBOT_BOTS[@]}"; do
-      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+      bot_needs_sudo "$BOT" && need_sudo=true && break
     done
 
     if $need_sudo; then
@@ -496,7 +529,7 @@ stop_all_bots() {
     # Check if we need sudo
     local need_sudo=false
     for BOT in "${MAILBOT_BOTS[@]}"; do
-      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+      bot_needs_sudo "$BOT" && need_sudo=true && break
     done
 
     if $need_sudo; then
