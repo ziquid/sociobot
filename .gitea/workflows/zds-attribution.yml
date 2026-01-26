@@ -79,7 +79,7 @@ jobs:
             # Append one Co-Authored-By line per unique AI identity (if any)
             if [ -n "$AI_COAUTHORS" ]; then
               while IFS= read -r ident; do
-                [ -n "$ident" ] && NEW_BODY="$(printf '%sCo-Authored-By: `%s`\n\n' "$NEW_BODY" "$ident")"
+                [ -n "$ident" ] && NEW_BODY="$(printf '%sCo-Authored-By: %s\n\n' "$NEW_BODY" "$ident")"
               done <<EOF
           $AI_COAUTHORS
           EOF
