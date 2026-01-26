@@ -59,7 +59,7 @@ jobs:
             | .commit.author, .commit.committer
             | select((.email // "") | endswith("'"$AI_DOMAIN"'"))
             | select((.name // "") != "" and (.email // "") != "")
-            | "\(.name) &lt;\(.email)&gt;"
+            | "\(.name) <\(.email)>"
           ' | sort -u)
 
           if [ "$HAS_AI" -eq 1 ] && [ -z "$AI_COAUTHORS" ]; then
@@ -71,15 +71,15 @@ jobs:
           if [ "$HAS_AI" -eq 1 ]; then
             NEW_BODY=$(printf '%s' "$NEW_BODY" | sed 's/[[:space:]]*$//')
             if [ -n "$NEW_BODY" ]; then
-              NEW_BODY="$(printf '%s\n\n%s\n' "$NEW_BODY" "$ZDS_ATTR")"
+              NEW_BODY="$(printf '%s\n\n%s\n\n' "$NEW_BODY" "$ZDS_ATTR")"
             else
-              NEW_BODY="$(printf '%s\n' "$ZDS_ATTR")"
+              NEW_BODY="$(printf '%s\n\n' "$ZDS_ATTR")"
             fi
 
             # Append one Co-Authored-By line per unique AI identity (if any)
             if [ -n "$AI_COAUTHORS" ]; then
               while IFS= read -r ident; do
-                [ -n "$ident" ] && NEW_BODY="$(printf '%sCo-Authored-By: `%s`\n' "$NEW_BODY" "$ident")"
+                [ -n "$ident" ] && NEW_BODY="$(printf '%sCo-Authored-By: `%s`\n\n' "$NEW_BODY" "$ident")"
               done <<EOF
           $AI_COAUTHORS
           EOF
