@@ -41,9 +41,9 @@ jobs:
             | sed "/^$(printf '%s' "$ZDS_ATTR" | sed 's/[][\\/.*^$]/\\&/g')$/d")
 
           # Strip any existing AI Co-Authored-By lines (angle or HTML-escaped)
-          AI_DOMAIN_RE=$(printf '%s' "$AI_DOMAIN" | sed 's/^@//' | sed 's/[.[\*^$(){}+?|\\]/\\&/g')
+          AI_DOMAIN_RE=$(printf '%s' "$AI_DOMAIN" | sed -e 's/^@//' -e 's/[.[\*^$(){}+?|\\]/\\&/g')
           NEW_BODY=$(printf '%s' "$NEW_BODY" \
-            | sed -E "/^[[:space:]]*Co-Authored-By: .*(&lt;|<)[^>]*@${AI_DOMAIN_RE}(&gt;|>)[[:space:]]*$/Id")
+            | sed -E "/^.*Co-Authored-By: .*${AI_DOMAIN_RE}.*$/Id")
 
           # Strip any existing Claude/Anthropic Co-Authored-By lines (email domains only)
           NEW_BODY=$(printf '%s' "$NEW_BODY" \
