@@ -67,15 +67,15 @@ jobs:
           if [ "$HAS_AI" -eq 1 ]; then
             NEW_BODY=$(printf '%s' "$NEW_BODY" | sed 's/[[:space:]]*$//')
             if [ -n "$NEW_BODY" ]; then
-              NEW_BODY="${NEW_BODY}\n\n${ZDS_ATTR}\n"
+              NEW_BODY="$(printf '%s\n\n%s\n' "$NEW_BODY" "$ZDS_ATTR")"
             else
-              NEW_BODY="${ZDS_ATTR}\n"
+              NEW_BODY="$(printf '%s\n' "$ZDS_ATTR")"
             fi
 
             # Append one Co-Authored-By line per unique AI identity (if any)
             if [ -n "$AI_COAUTHORS" ]; then
               while IFS= read -r ident; do
-                [ -n "$ident" ] && NEW_BODY="${NEW_BODY}Co-Authored-By: $ident\n"
+                [ -n "$ident" ] && NEW_BODY="$(printf '%sCo-Authored-By: %s\n' "$NEW_BODY" "$ident")"
               done <<EOF
           $AI_COAUTHORS
           EOF
