@@ -15,8 +15,8 @@ jobs:
           API="${{ gitea.server_url }}/api/v1"
           OWNER="${GITHUB_REPOSITORY%%/*}"
           REPO="${GITHUB_REPOSITORY#*/}"
-          PR_INDEX="${{ gitea.event.pull_request.index }}"
-          HEAD_REF="${{ gitea.event.pull_request.head.ref }}"
+          PR_INDEX="$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")"
+          HEAD_REF="$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")"
 
           # Ticket = digits after "feature/" (feature/123-foo -> 123)
           TICKET=$(printf '%s' "$HEAD_REF" | sed -n 's|^feature/\([0-9][0-9]*\)-.*|\1|p')
@@ -31,10 +31,12 @@ jobs:
 
           DUP=$(echo "$PRS" | jq -r --arg t "$TICKET" --arg me "$PR_INDEX" '
             .[]
-            | select((.number|tostring) != $me)
+            | select((.id|tostring) != $me)
             | select((.head.ref // "") | test("^feature/" + $t + "-"))
             | .number
           ' | head -n1)
+
+          echo "DEBUG: PR_INDEX=$PR_INDEX; first list item id/number=$(echo "$PRS" | jq -r '.[0] | "\(.id)/\(.number)"')"
 
           [ -z "$DUP" ] && exit 0
 
