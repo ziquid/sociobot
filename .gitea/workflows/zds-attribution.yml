@@ -2,7 +2,7 @@ name: Ensure ZDSCS Attribution
 
 on:
   pull_request:
-    types: [opened, edited, synchronize]
+    types: [opened, reopened, edited, synchronize]
 
 jobs:
   ensure-attribution:
@@ -10,42 +10,77 @@ jobs:
     steps:
       - name: Ensure ZDSCS attribution in PR body
         env:
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          ZDS_ACTIONS_TOKEN: ${{ secrets.ZDS_ACTIONS_TOKEN }}
           ZDS_ATTR: "⚡️ Powered by ZDS AI Agents"
           AI_DOMAIN: "@ai.zds.group"
         run: |
-          PR_INDEX="${{ gitea.event.pull_request.index }}"
-          OWNER="${{ gitea.repository.owner }}"
-          REPO="${{ gitea.repository.name }}"
           API="${{ gitea.server_url }}/api/v1"
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          PR_INDEX="$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")"
 
-          PR_JSON=$(curl -s \
-            -H "Authorization: token $GITEA_TOKEN" \
+          PR_JSON=$(curl -fsS \
+            -H "Authorization: token $ZDS_ACTIONS_TOKEN" \
             "$API/repos/$OWNER/$REPO/pulls/$PR_INDEX")
 
           BODY=$(echo "$PR_JSON" | jq -r '.body // ""')
 
-          echo "$BODY" | grep -Fq "$ZDS_ATTR" && exit 0
-
           HAS_AI=0
-          COMMITS=$(curl -s \
-            -H "Authorization: token $GITEA_TOKEN" \
+          COMMITS=$(curl -fsS \
+            -H "Authorization: token $ZDS_ACTIONS_TOKEN" \
             "$API/repos/$OWNER/$REPO/pulls/$PR_INDEX/commits")
 
           echo "$COMMITS" \
-            | jq -r '.[].commit.author.email, .[].commit.committer.email' \
-            | grep -q "$AI_DOMAIN" && HAS_AI=1
+            | jq -r '.[].commit.author.email // "", .[].commit.committer.email // ""' \
+            | grep -Eq "$(printf '%s' "$AI_DOMAIN" | sed 's/[.[\*^$(){}+?|\\]/\\&/g')$" && HAS_AI=1
 
-          NEW_BODY="$ZDS_ATTR"
+          # Strip any existing ZDS attribution line
+          NEW_BODY=$(printf '%s' "$BODY" | sed 's/[[:space:]]*$//' | sed "/^$(printf '%s' "$ZDS_ATTR" | sed 's/[][\\/.*^$]/\\&/g')$/d")
 
-          if [ "$HAS_AI" -eq 1 ]; then
-            NEW_BODY="$NEW_BODY\n\nCo-Authored-By: ZDS AI Agent <agent@ai.zds.group>"
+          # Strip any existing AI Co-Authored-By lines
+          AI_DOMAIN_RE=$(printf '%s' "$AI_DOMAIN" | sed 's/^@//' | sed 's/[.[\*^$(){}+?|\\]/\\&/g')
+          NEW_BODY=$(printf '%s' "$NEW_BODY" \
+            | sed -E "/^[[:space:]]*Co-Authored-By: .*<[^>]*@${AI_DOMAIN_RE}>[[:space:]]*$/Id")
+
+          # Strip any existing Claude Co-Authored-By lines (by email)
+          NEW_BODY=$(printf '%s' "$NEW_BODY" | sed -E '/^[[:space:]]*Co-Authored-By: .*<[^>]*@(anthropic\.com|claude\.ai)>[[:space:]]*$/Id')
+
+          # Build unique Co-Authored-By lines for every AI agent in the PR commits
+          AI_COAUTHORS=$(echo "$COMMITS" | jq -r '
+            .[]
+            | .commit.author, .commit.committer
+            | select((.email // "") | endswith("'"$AI_DOMAIN"'"))
+            | select((.name // "") != "" and (.email // "") != "")
+            | "\(.name) <\(.email)>"
+          ' | sort -u)
+
+          if [ "$HAS_AI" -eq 1 ] && [ -z "$AI_COAUTHORS" ]; then
+            echo "ZDSCS failed: AI commits detected but no valid Name <email${AI_DOMAIN}> identities found in commit metadata" >&2
+            exit 1
           fi
 
-          NEW_BODY="$NEW_BODY\n\n$BODY"
+          # Append attribution footer if HAS_AI
+          if [ "$HAS_AI" -eq 1 ]; then
+            NEW_BODY=$(printf '%s' "$NEW_BODY" | sed 's/[[:space:]]*$//')
+            if [ -n "$NEW_BODY" ]; then
+              NEW_BODY="${NEW_BODY}\n\n${ZDS_ATTR}\n"
+            else
+              NEW_BODY="${ZDS_ATTR}\n"
+            fi
 
-          curl -s -X PATCH \
-            -H "Authorization: token $GITEA_TOKEN" \
+            # Append one Co-Authored-By line per unique AI identity (if any)
+            if [ -n "$AI_COAUTHORS" ]; then
+              while IFS= read -r ident; do
+                [ -n "$ident" ] && NEW_BODY="${NEW_BODY}Co-Authored-By: $ident\n"
+              done <<EOF
+$AI_COAUTHORS
+EOF
+            fi
+          fi
+
+          [ "$NEW_BODY" = "$BODY" ] && exit 0
+          curl -fsS -X PATCH \
+            -H "Authorization: token $ZDS_ACTIONS_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg body "$NEW_BODY" '{body:$body}')" \
             "$API/repos/$OWNER/$REPO/pulls/$PR_INDEX" >/dev/null
