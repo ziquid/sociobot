@@ -73,8 +73,8 @@ jobs:
               while IFS= read -r ident; do
                 [ -n "$ident" ] && NEW_BODY="${NEW_BODY}Co-Authored-By: $ident\n"
               done <<EOF
-$AI_COAUTHORS
-EOF
+          $AI_COAUTHORS
+          EOF
             fi
           fi
 
