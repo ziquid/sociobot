@@ -59,7 +59,7 @@ jobs:
             | .commit.author, .commit.committer
             | select((.email // "") | endswith("'"$AI_DOMAIN"'"))
             | select((.name // "") != "" and (.email // "") != "")
-            | "\(.name) \<\(.email)\>"
+            | "\(.name) <\(.email)>"
           ' | sort -u)
 
           if [ "$HAS_AI" -eq 1 ] && [ -z "$AI_COAUTHORS" ]; then
