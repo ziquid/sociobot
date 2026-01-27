@@ -224,6 +224,7 @@ start_single_bot() {
   if bot_needs_sudo "$BOT_NAME"; then
     # Run as agent user via sudo, passing through API keys and system vars
     local AGENT_HOME=~"$BOT_NAME"
+    cd "$AGENT_HOME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
       PATH=\"$PATH\" \
       HOME=\"$AGENT_HOME\" \
@@ -256,6 +257,7 @@ start_single_bot() {
       nohup sociobot \"$BOT_NAME\" $DEBUG_FLAG >> \"$LOG_FILE\" 2>&1 &"
   else
     # On host or shared user: run as current user
+    cd "$HOME"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       ${TZ:+TZ="$TZ"} \
       CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
@@ -338,6 +340,7 @@ start_single_mailbot() {
   if bot_needs_sudo "$BOT_NAME"; then
     # Run as agent user via sudo
     local AGENT_HOME=~"$BOT_NAME"
+    cd "$AGENT_HOME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
       PATH=\"$PATH\" \
       HOME=\"$AGENT_HOME\" \
@@ -351,6 +354,7 @@ start_single_mailbot() {
       nohup mailbot $DEBUG_FLAG >> \"$LOG_FILE\" 2>&1 &"
   else
     # On host or shared user: run as current user
+    cd "$HOME"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       ${TZ:+TZ="$TZ"} \
       OLLAMA_HOST="$OLLAMA_HOST" \

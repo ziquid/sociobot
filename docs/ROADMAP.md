@@ -18,4 +18,5 @@
 ### Bugs Fixed
 
 - [✅] boctl check for sudo was incorrect
+- [✅] cd to agent home before spawning *bot
 - [  ]
