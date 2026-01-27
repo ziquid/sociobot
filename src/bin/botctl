@@ -1,8 +1,10 @@
 #!/usr/bin/env zsh
-# Sociobot Monitor and Auto-Restart Script
-# Monitors Sociobot instances and restarts them when needed
+# Sociobot/mailbot monitor and auto-restart script
+# Monitors *bot instances and restarts them when needed
 
 # set -x
+
+ME=$(basename "$0")
 
 # Check for version option
 if [[ "$1" == --version || "$1" == -v ]]; then
@@ -12,7 +14,7 @@ if [[ "$1" == --version || "$1" == -v ]]; then
   if [[ -s "$PACKAGE_DIR/package.json" ]]; then
     jq -r '.version' "$PACKAGE_DIR/package.json"
   else
-    echo Error: Cannot find package.json >&2
+    echo ❌ Error: Cannot find package.json >&2
     exit 1
   fi
   exit 0
@@ -20,8 +22,8 @@ fi
 
 # Check that ZDS_AI_HOST_ID is set
 if [[ -z "$ZDS_AI_HOST_ID" ]]; then
-  echo "❌ Error: ZDS_AI_HOST_ID environment variable is not set" >&2
-  echo "This variable identifies which host this botctl instance is running on." >&2
+  echo ❌ Error: ZDS_AI_HOST_ID environment variable is not set >&2
+  echo This variable identifies which host this botctl instance is running on. >&2
   exit 1
 fi
 
@@ -63,7 +65,7 @@ MAX_HIGH_LOAD_COUNT=9
 MONITORING=true
 
 # Log command invocation
-logger -p user.info "sociobot: Command invoked: $0 $*"
+logger -p user.info "sociobot: Command invoked: $ME $*"
 
 # Handle interruption signals
 trap 'die 130 "Interrupted by user (Ctrl+C)"' SIGINT
@@ -74,7 +76,7 @@ log_message() {
 }
 
 get_load_avg() {
-  uptime | awk -F'load averages?: ' '{print $2}' | awk '{print $1}'
+  uptime | awk -F'load averages?: ' '{print $2}' | awk '{print $1}' | tr -d ,
 }
 
 get_load_int() {
@@ -784,7 +786,7 @@ case "${1:-help}" in
       fi
     else
       echo "❌ Error: tail command requires a bot name" >&2
-      echo "Usage: $0 tail <bot_name>" >&2
+      echo "Usage: $ME tail <bot_name>" >&2
       echo "Valid bots: ${BOTS[*]}" >&2
       exit 1
     fi
@@ -843,7 +845,7 @@ case "${1:-help}" in
       fi
     else
       # Show botctl system logs (platform-specific)
-      if [[ "$(uname)" == "Darwin" ]]; then
+      if [[ "$(uname)" == Darwin ]]; then
         # macOS: use unified logging system
         /usr/bin/log show --predicate 'process == "logger" AND eventMessage CONTAINS "sociobot:"' \
             --info --debug --last 8h --style compact \
@@ -858,49 +860,48 @@ case "${1:-help}" in
           grep "sociobot:" /var/log/messages | tail -n 100
         else
           echo "❌ Error: Cannot find system logs" >&2
-          echo "Use '$0 logs <bot_name>' to view bot-specific logs" >&2
+          echo "Use '$ME logs <agent>' to view agent-specific logs" >&2
           exit 1
         fi
       fi
     fi
     ;;
+
   monitor|mon)
     start_monitor "$2"
     ;;
+
   restart-monitor|rmon)
     stop_monitor
     restart_all_bots
     start_monitor "$2"
     ;;
+
   *)
     HELP_WIDTH=42
-    echo "Usage: $0 <command> [--debug] [bot_name...]"
+    echo "Usage: $ME <command> [--debug] [<agent> ...]"
     echo
     echo These commands run once and exit:
-    printf "  %-${HELP_WIDTH}s - %s\n" "start (run) [--debug] [bot_name...]" "Start all bots or specific bot(s)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "stop (kill) [bot_name...]" "Stop monitor and all bots, or specific bot(s)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "restart [--debug] [bot_name...]" "Restart all bots or specific bot(s)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "status (st)" "Show bot and monitor status"
-    printf "  %-${HELP_WIDTH}s - %s\n" "logs (log) [<bot-name> [-f]]" "Show logs (system or bot-name's log)"
-    printf "  %-${HELP_WIDTH}s   %s\n" "" "[-f] follow bot log until interrupted"
-    printf "  %-${HELP_WIDTH}s - %s\n" "tail <bot-name>" "Follow bot-name's log (alias for logs -f)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "help" "Show this help message"
+    printf "  %-${HELP_WIDTH}s: %s\n" "start (run) [--debug] [<agent> ...]" "Start all bots or only specified agent(s)' bot(s)"
+    printf "  %-${HELP_WIDTH}s: %s\n" "stop (kill) [<agent> ...]" "Stop monitor and all bots,  or only specified agent(s)' bot(s)"
+    printf "  %-${HELP_WIDTH}s: %s\n" "restart [--debug] [bot_name...]" "Restart all bots or specific bot(s)"
+    printf "  %-${HELP_WIDTH}s: %s\n" "status (st)" "Show bot and monitor status"
+    printf "  %-${HELP_WIDTH}s: %s\n" "logs (log) [<agent> [-f]]" "Show logs (system or agent's bot log(s))"
+    printf "  %-${HELP_WIDTH}s  %s\n" "" "[-f] follow agent's bot log(s) until interrupted"
+    printf "  %-${HELP_WIDTH}s: %s\n" "tail <agent>" "same as above (alias for logs -f)"
+    printf "  %-${HELP_WIDTH}s: %s\n" help "Show this help message"
     echo
     echo These commands run continuously until interrupted:
-    printf "  %-${HELP_WIDTH}s - %s\n" "monitor (mon) [-fg]" "Monitor bots (background by default, -fg for foreground)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "restart-monitor (rmon) [-fg]" "Stop monitor, restart bots, start new monitor"
+    printf "  %-${HELP_WIDTH}s: %s\n" "monitor (mon) [-fg]" "Monitor bots (background by default, -fg for foreground)"
+    printf "  %-${HELP_WIDTH}s: %s\n" "restart-monitor (rmon) [-fg]" "Stop monitor, restart bots, start new monitor"
     echo
     echo Options:
-    printf "  %-${HELP_WIDTH}s - %s\n" "--debug" "Enable verbose debug logging (applies to all bots)"
+    printf "  %-${HELP_WIDTH}s: %s\n" --debug "Enable verbose debug logging (applies to all bots)"
     echo
-    echo "Valid bot names: ${BOTS[*]}"
+    echo "Valid agent names: ${BOTS[*]}"
     echo
     echo Examples:
-    echo "  $0 start <bot>                 # Start single bot"
-    echo "  $0 start <bot1> <bot2>         # Start multiple bots"
-    echo "  $0 start --debug <bot1> <bot2> # Start multiple bots with debug logging"
-    echo "  $0 stop <bot1> <bot2>          # Stop multiple bots"
-    echo "  $0 restart --debug <bot>       # Restart bot with debug logging"
+    echo "$ME --debug <agent>       # Restart agent's bot(s) with debug logging"
     exit 1
     ;;
 esac

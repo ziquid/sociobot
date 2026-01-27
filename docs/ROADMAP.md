@@ -19,4 +19,6 @@
 
 - [✅] boctl check for sudo was incorrect
 - [✅] cd to agent home before running any bots
+- [✅] Linux load averages had a trailing comma
 - [  ]
+
