@@ -12,6 +12,7 @@
 
 ### New Functionality
 
+- [✅] botctl monitor midnight restart (#61)
 - [  ] Add SKILLS for helper scripts
    - [  ] list goes here
 

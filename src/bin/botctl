@@ -621,8 +621,56 @@ monitor_loop() {
   log_message "NEW MONITOR SESSION STARTED, PID $$"
   log_message "🔍 Starting continuous monitoring of ${#BOTS[@]} bots..."
 
+  # Track current date for midnight restart detection
+  CURRENT_DATE=$(date +%Y-%m-%d)
+
   while true; do
     log_message "📊 System load: $(get_load_avg)"
+
+    # Check for date change (after midnight)
+    NEW_DATE=$(date +%Y-%m-%d)
+    if [[ "$NEW_DATE" != "$CURRENT_DATE" ]]; then
+      log_message "Date changed from $CURRENT_DATE to $NEW_DATE -- performing midnight restart of all bots"
+
+      # Capture debug state of all bots before restart
+      declare -A BOT_STATES
+      for BOT in "${SOCIOBOT_BOTS[@]}"; do
+        BOT_STATES[$BOT]=$(get_bot_status "$BOT")
+      done
+      for BOT in "${MAILBOT_BOTS[@]}"; do
+        BOT_STATES[$BOT]=$(get_mailbot_status "$BOT")
+      done
+
+      stop_all_bots
+
+      # Restart each bot (debug bots stay in debug mode, others in normal mode)
+      for BOT in "${SOCIOBOT_BOTS[@]}"; do
+        local STATE="${BOT_STATES[$BOT]}"
+        if [[ "$STATE" == debug ]]; then
+          log_message "DEBUG: Restarting $BOT bot in DEBUG mode"
+          start_single_bot "$BOT" --debug
+        else
+          log_message "Restarting $BOT bot in NORMAL mode"
+          start_single_bot "$BOT"
+        fi
+        sleep 3
+      done
+
+      for BOT in "${MAILBOT_BOTS[@]}"; do
+        local STATE="${BOT_STATES[$BOT]}"
+        if [[ "$STATE" == debug ]]; then
+          log_message "DEBUG: Restarting $BOT mailbot in DEBUG mode"
+          start_single_mailbot "$BOT" --debug
+        else
+          log_message "Restarting $BOT mailbot in NORMAL mode"
+          start_single_mailbot "$BOT"
+        fi
+        sleep 3
+      done
+
+      CURRENT_DATE="$NEW_DATE"
+      log_message "Midnight restart complete -- resuming normal monitoring"
+    fi
 
     # Check system load first - emergency shutdown if too high
     if [ "$(get_load_int)" -gt "$EMERGENCY_LOAD_THRESHOLD" ]; then
@@ -677,7 +725,7 @@ case "${1:-help}" in
 
       if [[ ${#BOT_NAMES[@]} -eq 0 ]]; then
         echo ❌ Error: No agents specified >&2
-        echo "Valid bots: ${BOTS[*]}" >&2
+        echo Valid agents: ${BOTS[*]} >&2
         exit 1
       fi
 
@@ -746,7 +794,7 @@ case "${1:-help}" in
       # FIXME: support restart_all_bots with --debug
       if [[ ${#BOT_NAMES[@]} -eq 0 ]]; then
         echo ❌ Error: No agents specified >&2
-        echo "Valid agents: ${BOTS[*]}" >&2
+        echo Valid agents: ${BOTS[*]} >&2
         exit 1
       fi
 
@@ -788,9 +836,9 @@ case "${1:-help}" in
         set -- "logs" "$2" "-f"
       fi
     else
-      echo "❌ Error: tail command requires an agent name" >&2
-      echo "Usage: $ME tail <agent>" >&2
-      echo "Valid agents: ${BOTS[*]}" >&2
+      echo ❌ Error: tail command requires an agent name >&2
+      echo Usage: $ME tail \<agent\> >&2
+      echo Valid agents: ${BOTS[*]} >&2
       exit 1
     fi
     ;& # fall through to logs case
@@ -863,7 +911,7 @@ case "${1:-help}" in
         elif [[ -f /var/log/messages ]]; then
           grep "sociobot:" /var/log/messages | tail -n 100
         else
-          echo "❌ Error: Cannot find system logs" >&2
+          echo ❌ Error: Cannot find system logs >&2
           echo "Use '$ME logs <agent>' to view agent-specific logs" >&2
           exit 1
         fi
@@ -883,7 +931,7 @@ case "${1:-help}" in
 
   *)
     HELP_WIDTH=42
-    echo "Usage: $ME <command> [--debug] [<agent> ...]"
+    echo Usage: $ME \<command\> [--debug] [\<agent\> ...]
     echo
     echo These commands run once and exit:
     printf "  %-${HELP_WIDTH}s# %s\n" "start (run) [--debug] [<agent> ...]" "Start all bots or only specified agent(s)' bot(s)"
@@ -902,7 +950,7 @@ case "${1:-help}" in
     echo Options:
     printf "  %-${HELP_WIDTH}s# %s\n" --debug "Enable verbose debug logging (applies to all bots)"
     echo
-    echo "Valid agent names: ${BOTS[*]}"
+    echo Valid agent names: ${BOTS[*]}
     echo
     echo Examples:
     echo "  $ME restart --debug <agent>            # Restart agent's bot(s) with debug logging"
