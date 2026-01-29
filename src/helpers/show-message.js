@@ -41,7 +41,10 @@ client.once('clientReady', async () => {
       if (channel.isTextBased()) {
         try {
           const message = await channel.messages.fetch(messageId);
-          console.log(`Found message ${messageId} in ${channel.name || `DM with ${channel.recipient?.username}`}:`);
+          const channelName = channel.name || (channel.recipient
+            ? `DM with ${channel.recipient.username || channel.recipient.tag || 'Unknown'} (ID: ${channel.recipient.id})`
+            : `DM (ID: ${channel.id})`);
+          console.log(`Found message ${messageId} in ${channelName}:`);
           console.log(`  Author: ${message.author.username} (bot: ${message.author.bot})`);
           console.log(`  Created: ${message.createdAt.toLocaleString()}`);
           console.log(`  Content: ${message.content}`);

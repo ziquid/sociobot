@@ -197,7 +197,10 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
 
   const isDM = channel.type === ChannelType.DM;
   const messageSource = isDM ? 'discord-dm' : 'discord';
-  const channelName = channel.name || `DM with ${channel.recipient?.username}`;
+  // For DM channels, try multiple fallbacks for recipient info
+  const channelName = channel.name || (isDM && channel.recipient
+    ? `DM with ${channel.recipient.username || channel.recipient.tag || 'Unknown'} (ID: ${channel.recipient.id})`
+    : `DM (ID: ${channel.id})`);
 
   // Determine privacy: DM channels are always private, guild channels check @everyone permissions
   let privacy = 'public';
@@ -399,7 +402,8 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
   }
 
   try {
-    const channelName = channel.name || `DM with ${channel.recipient?.username}`;
+    // For DM channels, use recipient username, or fall back to author username, or recipient ID
+    const channelName = channel.name || `DM with ${channel.recipient?.username || message.author.username} (ID: ${channel.recipient?.id || message.author.id})`;
     const convertedContent = convertMentions(message.content, message.client);
 
     // Get current ACL from message and check against agent's max ACL
@@ -580,7 +584,9 @@ export async function processBatchedMessages(messages, channel, agentName, debug
     const messageData = {
       channel: {
         id: channel.id,
-        name: channel.name || `DM with ${channel.recipient?.username}`,
+        name: channel.name || (channel.type === ChannelType.DM && channel.recipient
+          ? `DM with ${channel.recipient.username || channel.recipient.tag || 'Unknown'} (ID: ${channel.recipient.id})`
+          : `DM (ID: ${channel.id})`),
         type: channel.type === ChannelType.DM ? 'DM' : 'guild'
       },
       messages: await Promise.all(messages.map(async msg => {

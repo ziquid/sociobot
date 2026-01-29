@@ -943,7 +943,9 @@ async function handleRealtimeMessage(message) {
   const hasViewPermission = message.channel.permissionsFor?.(client.user)?.has('ViewChannel');
 
   if (DEBUG) {
-    const channelName = message.channel.name || `DM with ${message.channel.recipient?.username}`;
+    const channelName = message.channel.name || (message.channel.recipient
+      ? `DM with ${message.channel.recipient.username || message.channel.recipient.tag || message.author.username} (ID: ${message.channel.recipient.id || message.author.id})`
+      : `DM with ${message.author.username} (ID: ${message.author.id})`);
     log(`ROUTING: Message ${message.id} from ${message.author.username} in ${channelName}`);
     log(`  -> mention=${isMention}, isDM=${isDM}, hasViewPerm=${hasViewPermission}`);
 
@@ -1090,8 +1092,10 @@ client.once(Events.ClientReady, async (readyClient) => {
     for (const channelId of Object.keys(lastMessages)) {
       try {
         const channel = await readyClient.channels.fetch(channelId);
-        const name = channel.name || `DM with ${channel.recipient?.username}` || `Unknown`;
-        if (DEBUG || name === "Unknown") {
+        const name = channel.name || (channel.recipient
+          ? `DM with ${channel.recipient.username || channel.recipient.tag || 'Unknown'} (ID: ${channel.recipient.id})`
+          : `Unknown (ID: ${channelId})`);
+        if (DEBUG || name.includes("Unknown")) {
           channelNames.push(`${name} (${channelId})`);
         } else {
           channelNames.push(name);
@@ -1209,7 +1213,9 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const messagePreview = message.content.substring(0, 500);
     const truncated = message.content.length > 500 ? '...' : '';
 
-    const channelName = message.channel.name || `DM with ${message.channel.recipient?.username}`;
+    const channelName = message.channel.name || (message.channel.recipient
+      ? `DM with ${message.channel.recipient.username || message.channel.recipient.tag || message.author.username} (ID: ${message.channel.recipient.id || message.author.id})`
+      : `DM with ${message.author.username} (ID: ${message.author.id})`);
     const messageAuthor = message.author.username;
 
     log(`Reaction notification: ${user.username} reacted with ${emojiIdentifier} to ${messageAuthor}'s message in ${channelName}`);
