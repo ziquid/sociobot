@@ -21,4 +21,5 @@
 - [✅] boctl check for sudo was incorrect
 - [✅] cd to agent home before running any bots
 - [✅] Linux load averages had a trailing comma
+- [✅] qcli forwarding empty responses to Discord after stripping think tags (#70)
 - [  ]

@@ -395,6 +395,16 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
           continue;
         }
 
+        // Check if response is empty after stripping think tags
+        if (!responseText || responseText.length === 0) {
+          log(`Agent returned empty response after stripping think tags for message ${response.messageId}, skipping Discord reply`);
+          if (!highestProcessedId || message.id > highestProcessedId) {
+            highestProcessedId = message.id;
+          }
+          saveLastProcessedMessage(AGENT_NAME, channel.id, message.id);
+          continue;
+        }
+
         if (isErrorResponse(responseText)) {
           handleErrorResponse(`batch processing message ${response.messageId}`, circuitBreakerState, MAX_FAILURES, log);
           continue;
@@ -608,6 +618,16 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
                 saveLastProcessedMessage(AGENT_NAME, BOT_DMS_CHANNEL_ID, message.id);
                 continue;
               }
+            }
+
+            // Check if response is empty after stripping think tags
+            if (!responseText || responseText.length === 0) {
+              log(`Agent returned empty response after stripping think tags for bot-dms message ${response.messageId}, skipping Discord reply`);
+              if (!highestProcessedId || message.id > highestProcessedId) {
+                highestProcessedId = message.id;
+              }
+              saveLastProcessedMessage(AGENT_NAME, BOT_DMS_CHANNEL_ID, message.id);
+              continue;
             }
 
             if (isErrorResponse(responseText)) {
@@ -1008,6 +1028,13 @@ async function handleRealtimeMessage(message) {
         // If ACL limited and not a REACTION, block the text response
         if (aclLimited) {
           log(`Blocking text response to message ${message.id} (at ACL limit, reactions only)`);
+          saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
+          return;
+        }
+
+        // Check if response is empty after stripping think tags
+        if (!responseText || responseText.length === 0) {
+          log(`Agent returned empty response after stripping think tags for message ${message.id}, skipping Discord reply`);
           saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
           return;
         }
