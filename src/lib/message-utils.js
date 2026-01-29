@@ -4,7 +4,7 @@
  */
 
 import { EmbedBuilder } from 'discord.js';
-import { createFooter, getACL, getMaxACL } from './metadata.js';
+import { createFooter, getACL, getMaxACL, hasParticipatedInThread } from './metadata.js';
 
 /** @constant {number} Maximum characters allowed in a Discord message */
 const DISCORD_MESSAGE_LIMIT = 2000;
@@ -102,9 +102,16 @@ export async function sendLongMessage(message, content, debug = false, audioPath
   const acl = getACL(message);
   const maxACL = getMaxACL(message.channel, debug);
 
+  // Check if this agent has participated in the thread
+  const botUserId = message.client.user.id;
+  const hasParticipated = await hasParticipatedInThread(message, botUserId);
+
+  // Double ACL limit if agent participated in thread
+  const effectiveMaxACL = hasParticipated ? maxACL * 2 : maxACL;
+
   // Block sending if ACL would exceed maximum
-  if (acl >= maxACL) {
-    throw new Error(`ACL limit reached (${maxACL})`);
+  if (acl >= effectiveMaxACL) {
+    throw new Error(`ACL limit reached (${effectiveMaxACL})`);
   }
 
   const chunks = splitMessage(cleanedContent);

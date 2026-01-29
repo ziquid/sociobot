@@ -22,5 +22,6 @@
 - [✅] cd to agent home before running any bots
 - [✅] Linux load averages had a trailing comma
 - [✅] qcli forwarding empty responses to Discord after stripping think tags (#70)
+- [✅] Double ACL limits for thread participants (#71)
 - [✅] DM channel name showing "undefined" when recipient.username is null (#72)
 - [  ]

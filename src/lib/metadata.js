@@ -76,25 +76,69 @@ export function getACL(message) {
 }
 
 /**
+ * Check if a specific bot has participated in the message thread
+ * @param {Object} message - Discord message object to start from
+ * @param {string} botUserId - Bot user ID to check for
+ * @param {number} maxDepth - Maximum depth to search (default: 20)
+ * @returns {Promise<boolean>} - True if bot participated in thread
+ */
+export async function hasParticipatedInThread(message, botUserId, maxDepth = 20) {
+  let currentMessage = message;
+  let depth = 0;
+
+  // Walk up the reply chain looking for messages from this bot
+  while (currentMessage.reference?.messageId && depth < maxDepth) {
+    try {
+      const referencedMessage = await currentMessage.channel.messages.fetch(currentMessage.reference.messageId);
+
+      // Check if this message is from our bot
+      if (referencedMessage.author.bot && referencedMessage.author.id === botUserId) {
+        return true;
+      }
+
+      currentMessage = referencedMessage;
+      depth++;
+    } catch (error) {
+      // Stop if we can't fetch the referenced message
+      break;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Add response guidance to query based on current ACL state
  * @param {string} query - Original query content
  * @param {number} currentACL - Current ACL value
  * @param {number} maxACL - Maximum ACL allowed
  * @param {boolean} debug - Enable debug logging
+ * @param {boolean} hasParticipated - Whether agent already participated in thread
  * @returns {string} - Query with appropriate response guidance
  */
-export function addResponseGuidance(query, currentACL, maxACL, debug = false) {
-  if (currentACL === maxACL) {
+export function addResponseGuidance(query, currentACL, maxACL, debug = false, hasParticipated = false) {
+  // If agent participated in thread, they get double the ACL limit
+  const effectiveMaxACL = hasParticipated ? maxACL * 2 : maxACL;
+
+  if (currentACL === effectiveMaxACL) {
     if (debug) {
-      console.log(`At ACL limit (${currentACL} === ${maxACL}), adding reactions-only message`);
+      console.log(`At ACL limit (${currentACL} === ${effectiveMaxACL}), adding reactions-only message`);
     }
     return query + ACL_REACTIONS_ONLY_MESSAGE;
-  } else if (currentACL > maxACL) {
+  } else if (currentACL > effectiveMaxACL) {
     if (debug) {
-      console.log(`Beyond ACL limit (${currentACL} > ${maxACL}), adding courtesy message`);
+      console.log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL}), adding courtesy message`);
     }
     return query + ACL_COURTESY_MESSAGE;
+  } else if (hasParticipated && currentACL >= maxACL && currentACL < effectiveMaxACL) {
+    // Agent is beyond normal limit but within their doubled limit
+    const participantMessage = `\n\nNote: Since you already participated in this message thread, your ACL limit is ${effectiveMaxACL} (doubled from ${maxACL}). You are currently at ACL ${currentACL + 1}.`;
+    if (debug) {
+      console.log(`Agent participated in thread, has doubled ACL limit: ${effectiveMaxACL}`);
+    }
+    return query + participantMessage;
   }
+
   return query;
 }
 

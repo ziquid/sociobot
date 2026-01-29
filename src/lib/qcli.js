@@ -5,7 +5,7 @@ import { join } from "path";
 import { ChannelType } from "discord.js";
 import https from "https";
 import http from "http";
-import { getACL, getMaxACL, addResponseGuidance } from "./metadata.js";
+import { getACL, getMaxACL, addResponseGuidance, hasParticipatedInThread } from "./metadata.js";
 
 /**
  * Expand tilde in path to home directory
@@ -409,8 +409,15 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
     // Get current ACL from message and check against agent's max ACL
     const currentACL = getACL(message);
     const maxACL = getMaxACL(channel, debug);
-    const wouldExceedACL = currentACL > maxACL;
-    const isAtACLLimit = currentACL === maxACL;
+
+    // Check if this agent has participated in the thread
+    const botUserId = message.client.user.id;
+    const hasParticipated = await hasParticipatedInThread(message, botUserId);
+
+    // Double ACL limit if agent participated in thread
+    const effectiveMaxACL = hasParticipated ? maxACL * 2 : maxACL;
+    const wouldExceedACL = currentACL > effectiveMaxACL;
+    const isAtACLLimit = currentACL === effectiveMaxACL;
 
     // Check if this message is a reply to another message
     let replyContext = null;
@@ -511,8 +518,8 @@ ${convertedContent}`;
       attachments_count: message.attachments.size
     });
 
-    // Add response guidance based on ACL state
-    query = addResponseGuidance(query, currentACL, maxACL, debug);
+    // Add response guidance based on ACL state and thread participation
+    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated);
 
     if (debug) {
       console.log('=== REALTIME QUERY ===');
@@ -537,7 +544,7 @@ ${convertedContent}`;
     // If at ACL limit, allow only REACTION responses
     if (isAtACLLimit) {
       if (debug) {
-        log(`At ACL limit (${currentACL} === ${maxACL}), marking as aclLimited for REACTION-only handling`);
+        log(`At ACL limit (${currentACL} === ${effectiveMaxACL})${hasParticipated ? ' (doubled for thread participation)' : ''}, marking as aclLimited for REACTION-only handling`);
       }
       return response ? { response, hadTranscription, aclLimited: true } : null;
     }
@@ -545,7 +552,7 @@ ${convertedContent}`;
     // If beyond ACL limit, block entirely
     if (wouldExceedACL) {
       if (debug) {
-        log(`Beyond ACL limit (${currentACL} > ${maxACL}), blocking response`);
+        log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL})${hasParticipated ? ' (doubled for thread participation)' : ''}, blocking response`);
       }
       return null;
     }
