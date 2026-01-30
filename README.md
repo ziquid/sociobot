@@ -115,6 +115,19 @@ botctl logs test-agent
 botctl monitor
 ```
 
+#### Automatic Midnight Restart
+
+The `botctl monitor` command includes automatic midnight restart functionality:
+
+- Detects date change (after midnight local time)
+- Captures current state of all bots (running, debug, or stopped)
+- Restarts bots in their previous modes
+- Stopped bots remain stopped
+- Occurs once per day automatically
+- Resumes normal monitoring after restart completes
+
+This ensures bots are restarted daily to pick up any configuration changes or clear accumulated state.
+
 See `botctl help` for full command reference.
 
 ### Helper Scripts

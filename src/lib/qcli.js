@@ -5,7 +5,7 @@ import { join } from "path";
 import { ChannelType } from "discord.js";
 import https from "https";
 import http from "http";
-import { getACL, getMaxACL, addResponseGuidance } from "./metadata.js";
+import { getACL, getMaxACL, addResponseGuidance, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor } from "./metadata.js";
 
 /**
  * Expand tilde in path to home directory
@@ -192,12 +192,15 @@ function logInteraction(agentName, data) {
   }
 }
 
-async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null) {
+async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null) {
   activeProcesses++;
 
   const isDM = channel.type === ChannelType.DM;
   const messageSource = isDM ? 'discord-dm' : 'discord';
-  const channelName = channel.name || `DM with ${channel.recipient?.username}`;
+  // For DM channels, try multiple fallbacks for recipient info
+  const channelName = channel.name || (isDM && channel.recipient
+    ? `DM with ${channel.recipient.username || channel.recipient.tag || 'Unknown'} (ID: ${channel.recipient.id})`
+    : `DM (ID: ${channel.id})`);
 
   // Determine privacy: DM channels are always private, guild channels check @everyone permissions
   let privacy = 'public';
@@ -239,6 +242,14 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
     ZDS_AI_AGENT_MESSAGE_MEMBERS: members,
     ZDS_AI_AGENT_PRINT_ONLY: ''
   };
+
+  // Add reply context environment variables if present
+  if (replyContext) {
+    env.ZDS_AI_AGENT_MESSAGE_REPLY_TO_ID = replyContext.id;
+    env.ZDS_AI_AGENT_MESSAGE_REPLY_TO_AUTHOR = replyContext.author.username;
+    env.ZDS_AI_AGENT_MESSAGE_REPLY_TO_AUTHOR_ID = replyContext.author.id;
+    env.ZDS_AI_AGENT_MESSAGE_REPLY_TO_TIMESTAMP = replyContext.timestamp;
+  }
 
   // Set response format constraints based on mode
   if (isBatch) {
@@ -391,19 +402,68 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
   }
 
   try {
-    const channelName = channel.name || `DM with ${channel.recipient?.username}`;
+    // For DM channels, use recipient username, or fall back to author username, or recipient ID
+    const channelName = channel.name || `DM with ${channel.recipient?.username || message.author.username} (ID: ${channel.recipient?.id || message.author.id})`;
     const convertedContent = convertMentions(message.content, message.client);
 
     // Get current ACL from message and check against agent's max ACL
     const currentACL = getACL(message);
     const maxACL = getMaxACL(channel, debug);
-    const wouldExceedACL = currentACL > maxACL;
-    const isAtACLLimit = currentACL === maxACL;
+
+    // Check if this agent was mentioned, authored message/parent, or participated in thread
+    const botUserId = message.client.user.id;
+    const wasMentioned = wasMentionedInMessage(message, botUserId, agentName);
+    const isAuthor = await isMessageAuthor(message, botUserId);
+    const hasParticipated = await hasParticipatedInThread(message, botUserId);
+
+    // Calculate effective ACL limit: mentioned OR author (3x) > participated (2x) > normal (1x)
+    let effectiveMaxACL = maxACL;
+    if (wasMentioned || isAuthor) {
+      effectiveMaxACL = maxACL * 3;
+    } else if (hasParticipated) {
+      effectiveMaxACL = maxACL * 2;
+    }
+
+    const wouldExceedACL = currentACL > effectiveMaxACL;
+    const isAtACLLimit = currentACL === effectiveMaxACL;
+
+    // Check if this message is a reply to another message
+    let replyContext = null;
+    if (message.reference?.messageId) {
+      try {
+        const referencedMessage = await channel.messages.fetch(message.reference.messageId);
+        replyContext = {
+          id: referencedMessage.id,
+          author: {
+            id: referencedMessage.author.id,
+            username: referencedMessage.author.username
+          },
+          content: referencedMessage.content,
+          timestamp: referencedMessage.createdAt.toISOString()
+        };
+      } catch (error) {
+        if (debug) {
+          log(`Could not fetch referenced message ${message.reference.messageId}: ${error.message}`);
+        }
+        // Continue without reply context if fetch fails
+      }
+    }
 
     // Build query with message content
     let query = `New Discord message from @${message.author.username} (ID: ${message.author.id}) in channel ${channelName} (ID: ${channel.id}):
 
 ${convertedContent}`;
+
+    // Add reply context to query if present
+    if (replyContext) {
+      const replyPreview = replyContext.content.length > 100
+        ? replyContext.content.substring(0, 100) + '...'
+        : replyContext.content;
+      query += `\n\n[This message is a reply to message ${replyContext.id} from @${replyContext.author.username} sent at ${replyContext.timestamp}]`;
+      if (replyPreview) {
+        query += `\n[Original message: "${replyPreview}"]`;
+      }
+    }
 
     // Track if this message had audio transcription
     let hadTranscription = false;
@@ -466,15 +526,15 @@ ${convertedContent}`;
       attachments_count: message.attachments.size
     });
 
-    // Add response guidance based on ACL state
-    query = addResponseGuidance(query, currentACL, maxACL, debug);
+    // Add response guidance based on ACL state, mentions, authorship, and thread participation
+    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned, isAuthor);
 
     if (debug) {
       console.log('=== REALTIME QUERY ===');
       console.log(query);
     }
 
-    const response = await executeQCLI(query, agentName, message.author.username, channel, message.createdAt, currentACL, false, debug, message.client.user.username);
+    const response = await executeQCLI(query, agentName, message.author.username, channel, message.createdAt, currentACL, false, debug, message.client.user.username, replyContext);
 
     // Log the Q CLI response
     logInteraction(agentName, {
@@ -492,7 +552,8 @@ ${convertedContent}`;
     // If at ACL limit, allow only REACTION responses
     if (isAtACLLimit) {
       if (debug) {
-        log(`At ACL limit (${currentACL} === ${maxACL}), marking as aclLimited for REACTION-only handling`);
+        const reason = wasMentioned ? ' (tripled for mention)' : (hasParticipated ? ' (doubled for thread participation)' : '');
+        log(`At ACL limit (${currentACL} === ${effectiveMaxACL})${reason}, marking as aclLimited for REACTION-only handling`);
       }
       return response ? { response, hadTranscription, aclLimited: true } : null;
     }
@@ -500,7 +561,8 @@ ${convertedContent}`;
     // If beyond ACL limit, block entirely
     if (wouldExceedACL) {
       if (debug) {
-        log(`Beyond ACL limit (${currentACL} > ${maxACL}), blocking response`);
+        const reason = wasMentioned ? ' (tripled for mention)' : (hasParticipated ? ' (doubled for thread participation)' : '');
+        log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL})${reason}, blocking response`);
       }
       return null;
     }
@@ -539,14 +601,17 @@ export async function processBatchedMessages(messages, channel, agentName, debug
     const messageData = {
       channel: {
         id: channel.id,
-        name: channel.name || `DM with ${channel.recipient?.username}`,
+        name: channel.name || (channel.type === ChannelType.DM && channel.recipient
+          ? `DM with ${channel.recipient.username || channel.recipient.tag || 'Unknown'} (ID: ${channel.recipient.id})`
+          : `DM (ID: ${channel.id})`),
         type: channel.type === ChannelType.DM ? 'DM' : 'guild'
       },
-      messages: messages.map(msg => {
+      messages: await Promise.all(messages.map(async msg => {
         const msgACL = getACL(msg);
         const wouldExceedACL = msgACL > maxACL;
         const isAtACLLimit = msgACL === maxACL;
-        return {
+
+        const messageObj = {
           id: msg.id,
           author: {
             id: msg.author.id,
@@ -558,7 +623,30 @@ export async function processBatchedMessages(messages, channel, agentName, debug
           informationalOnly: wouldExceedACL && !isAtACLLimit,
           reactionsOnly: isAtACLLimit
         };
-      })
+
+        // Add reply context if this message is a reply
+        if (msg.reference?.messageId) {
+          try {
+            const referencedMessage = await channel.messages.fetch(msg.reference.messageId);
+            messageObj.replyTo = {
+              id: referencedMessage.id,
+              author: {
+                id: referencedMessage.author.id,
+                username: referencedMessage.author.username
+              },
+              content: referencedMessage.content,
+              timestamp: referencedMessage.createdAt.toISOString()
+            };
+          } catch (error) {
+            if (debug) {
+              log(`Could not fetch referenced message ${msg.reference.messageId} for batch: ${error.message}`);
+            }
+            // Continue without reply context if fetch fails
+          }
+        }
+
+        return messageObj;
+      }))
     };
 
     const messageJson = JSON.stringify(messageData, null, 2);

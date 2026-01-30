@@ -1,8 +1,10 @@
 #!/usr/bin/env zsh
-# Sociobot Monitor and Auto-Restart Script
-# Monitors Sociobot instances and restarts them when needed
+# Sociobot/mailbot monitor and auto-restart script
+# Monitors *bot instances and restarts them when needed
 
 # set -x
+
+ME=$(basename "$0")
 
 # Check for version option
 if [[ "$1" == --version || "$1" == -v ]]; then
@@ -12,7 +14,7 @@ if [[ "$1" == --version || "$1" == -v ]]; then
   if [[ -s "$PACKAGE_DIR/package.json" ]]; then
     jq -r '.version' "$PACKAGE_DIR/package.json"
   else
-    echo Error: Cannot find package.json >&2
+    echo ❌ Error: Cannot find package.json >&2
     exit 1
   fi
   exit 0
@@ -20,8 +22,8 @@ fi
 
 # Check that ZDS_AI_HOST_ID is set
 if [[ -z "$ZDS_AI_HOST_ID" ]]; then
-  echo "❌ Error: ZDS_AI_HOST_ID environment variable is not set" >&2
-  echo "This variable identifies which host this botctl instance is running on." >&2
+  echo ❌ Error: ZDS_AI_HOST_ID environment variable is not set >&2
+  echo This variable identifies which host this botctl instance is running on. >&2
   exit 1
 fi
 
@@ -63,7 +65,7 @@ MAX_HIGH_LOAD_COUNT=9
 MONITORING=true
 
 # Log command invocation
-logger -p user.info "sociobot: Command invoked: $0 $*"
+logger -p user.info "sociobot: Command invoked: $ME $*"
 
 # Handle interruption signals
 trap 'die 130 "Interrupted by user (Ctrl+C)"' SIGINT
@@ -74,11 +76,44 @@ log_message() {
 }
 
 get_load_avg() {
-  uptime | awk -F'load averages?: ' '{print $2}' | awk '{print $1}'
+  uptime | awk -F'load averages?: ' '{print $2}' | awk '{print $1}' | tr -d ,
 }
 
 get_load_int() {
   get_load_avg | cut -d . -f 1
+}
+
+bot_needs_sudo() {
+  # Check if bot needs sudo (matches logic from _zai_helper_agent_needs_sudo)
+  # Usage: bot_needs_sudo <bot_name>
+  # Returns: 0 (true) if bot needs sudo, 1 (false) otherwise
+  local bot_name="$1"
+
+  # Already $USERNAME? sudo not needed.
+  [[ "$bot_name" == "$USERNAME" ]] && return 1
+
+  # Bot handle is "bot"? sudo not needed.
+  [[ "$bot_name" == bot ]] && return 1
+
+  # No user account? sudo not needed.
+  id "$bot_name" &>/dev/null || return 1
+
+  # Bot needs sudo if ~<bot>/.zshrc is owned by bot user account.
+  local zshrc_file=~${bot_name}/.zshrc
+  [[ ! -f "$zshrc_file" ]] && return 1
+
+  # Get the owner of the .zshrc file
+  local file_owner
+  if [[ "$(uname)" == Darwin ]]; then
+    # macOS: use stat -f
+    file_owner=$(stat -f '%Su' "$zshrc_file" 2>/dev/null)
+  else
+    # Linux: use stat -c
+    file_owner=$(stat -c '%U' "$zshrc_file" 2>/dev/null)
+  fi
+
+  # Return true (0) if file owner matches bot name
+  [[ "$file_owner" == "$bot_name" ]]
 }
 
 get_bot_status() {
@@ -106,7 +141,7 @@ get_mailbot_status() {
       # Linux: read /proc/<pid>/environ
       [[ -f "/proc/$pid/environ" ]] || continue
       # Use sudo to read environ when running as different user (processes run as different users)
-      if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+      if bot_needs_sudo "$BOT_NAME"; then
         sudo -u "$BOT_NAME" cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -q "ZDS_AI_AGENT_HANDLE=$BOT_NAME" || continue
       else
         [[ -r "/proc/$pid/environ" ]] || continue
@@ -188,9 +223,10 @@ start_single_bot() {
   fi
 
   # Determine if we need to sudo (when running as different user than target bot)
-  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+  if bot_needs_sudo "$BOT_NAME"; then
     # Run as agent user via sudo, passing through API keys and system vars
     local AGENT_HOME=~"$BOT_NAME"
+    cd "$AGENT_HOME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
       PATH=\"$PATH\" \
       HOME=\"$AGENT_HOME\" \
@@ -206,9 +242,11 @@ start_single_bot() {
       MORPH_API_KEY=\"$MORPH_API_KEY\" \
       NANOGPT_API_KEY=\"$NANOGPT_API_KEY\" \
       OLLAMA_API_KEY=\"$OLLAMA_API_KEY\" \
+      OLLAMA_HOST=\"$OLLAMA_HOST\" \
       OPENAI_API_KEY=\"$OPENAI_API_KEY\" \
       OPENROUTER_API_KEY=\"$OPENROUTER_API_KEY\" \
       PLANO_API_KEY=\"$PLANO_API_KEY\" \
+      SYNTHETIC_API_KEY=\"$SYNTHETIC_API_KEY\" \
       VENICE_API_KEY=\"$VENICE_API_KEY\" \
       ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
       ZDS_AI_CLIENT_ID=\"$ZDS_AI_CLIENT_ID\" \
@@ -221,9 +259,11 @@ start_single_bot() {
       nohup sociobot \"$BOT_NAME\" $DEBUG_FLAG >> \"$LOG_FILE\" 2>&1 &"
   else
     # On host or shared user: run as current user
+    cd "$HOME"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       ${TZ:+TZ="$TZ"} \
       CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
+      OLLAMA_HOST="$OLLAMA_HOST" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       ZDS_AI_TTS_ENDPOINT="$ZDS_AI_TTS_ENDPOINT" \
       ZDS_AI_TTS_USER="$ZDS_AI_TTS_USER" \
@@ -231,7 +271,7 @@ start_single_bot() {
       nohup sociobot "$BOT_NAME" $DEBUG_FLAG >> "$LOG_FILE" 2>&1 &
   fi
 
-  sleep 3
+  sleep 1
 
   if is_bot_running "$BOT_NAME"; then
     log_message "✅ $BOT_NAME bot started successfully"
@@ -253,7 +293,7 @@ stop_single_bot() {
   log_message "🛑 Stopping $BOT_NAME bot..."
 
   # Use sudo when running as different user to kill processes owned by agent user
-  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+  if bot_needs_sudo "$BOT_NAME"; then
     sudo -u "$BOT_NAME" pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
   else
     pkill -f "sociobot $BOT_NAME" 2>/dev/null || true
@@ -262,7 +302,7 @@ stop_single_bot() {
 
   if is_bot_running "$BOT_NAME"; then
     log_message "⚠️  $BOT_NAME bot still running, force killing..."
-    if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+    if bot_needs_sudo "$BOT_NAME"; then
       sudo -u "$BOT_NAME" pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
     else
       pkill -9 -f "sociobot $BOT_NAME" 2>/dev/null || true
@@ -299,14 +339,16 @@ start_single_mailbot() {
   fi
 
   # Determine if we need to sudo (when running as different user than target bot)
-  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+  if bot_needs_sudo "$BOT_NAME"; then
     # Run as agent user via sudo
     local AGENT_HOME=~"$BOT_NAME"
+    cd "$AGENT_HOME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
       PATH=\"$PATH\" \
       HOME=\"$AGENT_HOME\" \
       LANG=\"${LANG:-en_US.UTF-8}\" \
       ${TZ:+TZ=\"$TZ\"} \
+      OLLAMA_HOST=\"$OLLAMA_HOST\" \
       ZDS_AI_AGENT_HANDLE=\"$BOT_NAME_VAR\" \
       ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
       ZDS_AI_AGENT_LOGS_DIR=\"$LOGS_DIR\" \
@@ -314,8 +356,10 @@ start_single_mailbot() {
       nohup mailbot $DEBUG_FLAG >> \"$LOG_FILE\" 2>&1 &"
   else
     # On host or shared user: run as current user
+    cd "$HOME"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       ${TZ:+TZ="$TZ"} \
+      OLLAMA_HOST="$OLLAMA_HOST" \
       ZDS_AI_AGENT_HANDLE="$BOT_NAME_VAR" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
       ZDS_AI_AGENT_LOGS_DIR="$LOGS_DIR" \
@@ -323,7 +367,7 @@ start_single_mailbot() {
       nohup mailbot $DEBUG_FLAG >> "$LOG_FILE" 2>&1 &
   fi
 
-  sleep 2
+  sleep 1
 
   if is_mailbot_running "$BOT_NAME"; then
     log_message "✅ $BOT_NAME mailbot started successfully"
@@ -345,7 +389,7 @@ stop_single_mailbot() {
   log_message "🛑 Stopping $BOT_NAME mailbot..."
 
   # Use sudo when running as different user to kill processes owned by agent user
-  if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+  if bot_needs_sudo "$BOT_NAME"; then
     sudo -u "$BOT_NAME" pkill -f mailbot 2>/dev/null || true
     sleep 1
   else
@@ -356,7 +400,7 @@ stop_single_mailbot() {
   # Force kill if still running
   if is_mailbot_running "$BOT_NAME"; then
     log_message "⚠️  Mailbot still running, force killing..."
-    if id "$BOT_NAME" &>/dev/null && [[ "$USERNAME" != "$BOT_NAME" ]]; then
+    if bot_needs_sudo "$BOT_NAME"; then
       sudo -u "$BOT_NAME" pkill -9 -f mailbot 2>/dev/null || true
     else
       pkill -9 -f mailbot 2>/dev/null || true
@@ -387,14 +431,14 @@ check_and_restart_bot() {
         die 1 "❌ System load too high for too long - exiting monitor"
       fi
 
-      sleep 27
+      sleep 29
       return
     else
       # Reset counter on normal load
       HIGH_LOAD_COUNT=0
     fi
 
-    log_message "⚠️  $BOT_NAME bot not running - restarting..."
+    log_message "⚠️  $BOT_NAME bot not running -- restarting..."
     start_single_bot "$BOT_NAME"
   else
     log_message "✅ $BOT_NAME bot running normally"
@@ -416,13 +460,13 @@ start_all_bots() {
   # Start all sociobots
   for BOT in "${SOCIOBOT_BOTS[@]}"; do
     start_single_bot "$BOT"
-    sleep 5
+    sleep 3
   done
 
   # Start all mailbots
   for BOT in "${MAILBOT_BOTS[@]}"; do
     start_single_mailbot "$BOT"
-    sleep 5
+    sleep 3
   done
 
   log_message "🎯 ${total_bots} bots startup complete"
@@ -434,10 +478,10 @@ stop_all_bots() {
 
   # Kill all sociobot processes
   if [[ ${#SOCIOBOT_BOTS[@]} -gt 0 ]]; then
-    # Check if we need sudo by checking if any bot user exists and differs from current user
+    # Check if we need sudo by checking if any bot needs sudo
     local need_sudo=false
     for BOT in "${SOCIOBOT_BOTS[@]}"; do
-      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+      bot_needs_sudo "$BOT" && need_sudo=true && break
     done
 
     if $need_sudo; then
@@ -451,10 +495,10 @@ stop_all_bots() {
 
   # Kill all mailbot processes
   if [[ ${#MAILBOT_BOTS[@]} -gt 0 ]]; then
-    # Check if we need sudo by checking if any bot user exists and differs from current user
+    # Check if we need sudo by checking if any bot needs sudo
     local need_sudo=false
     for BOT in "${MAILBOT_BOTS[@]}"; do
-      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+      bot_needs_sudo "$BOT" && need_sudo=true && break
     done
 
     if $need_sudo; then
@@ -474,7 +518,7 @@ stop_all_bots() {
     # Check if we need sudo
     local need_sudo=false
     for BOT in "${SOCIOBOT_BOTS[@]}"; do
-      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+      bot_needs_sudo "$BOT" && need_sudo=true && break
     done
 
     if $need_sudo; then
@@ -491,7 +535,7 @@ stop_all_bots() {
     # Check if we need sudo
     local need_sudo=false
     for BOT in "${MAILBOT_BOTS[@]}"; do
-      id "$BOT" &>/dev/null && [[ "$USERNAME" != "$BOT" ]] && need_sudo=true && break
+      bot_needs_sudo "$BOT" && need_sudo=true && break
     done
 
     if $need_sudo; then
@@ -509,15 +553,15 @@ stop_all_bots() {
 show_status() {
   declare BOT
 
-  echo "📊 Bot Status Report"
-  echo "==================="
-  echo "📈 System Load: $(get_load_avg)"
+  echo 📊 Bot Status Report
+  echo ====================
+  echo 📈 System Load: $(get_load_avg)
   echo
 
   if is_monitor_running; then
     echo "🔍 Monitor: RUNNING (PID $(cat "$PIDFILE"))"
   else
-    echo "❌ Monitor: STOPPED"
+    echo ❌ Monitor: STOPPED
   fi
   echo
 
@@ -577,8 +621,56 @@ monitor_loop() {
   log_message "NEW MONITOR SESSION STARTED, PID $$"
   log_message "🔍 Starting continuous monitoring of ${#BOTS[@]} bots..."
 
+  # Track current date for midnight restart detection
+  CURRENT_DATE=$(date +%Y-%m-%d)
+
   while true; do
     log_message "📊 System load: $(get_load_avg)"
+
+    # Check for date change (after midnight)
+    NEW_DATE=$(date +%Y-%m-%d)
+    if [[ "$NEW_DATE" != "$CURRENT_DATE" ]]; then
+      log_message "Date changed from $CURRENT_DATE to $NEW_DATE -- performing midnight restart of all bots"
+
+      # Capture debug state of all bots before restart
+      declare -A BOT_STATES
+      for BOT in "${SOCIOBOT_BOTS[@]}"; do
+        BOT_STATES[$BOT]=$(get_bot_status "$BOT")
+      done
+      for BOT in "${MAILBOT_BOTS[@]}"; do
+        BOT_STATES[$BOT]=$(get_mailbot_status "$BOT")
+      done
+
+      stop_all_bots
+
+      # Restart each bot (debug bots stay in debug mode, others in normal mode)
+      for BOT in "${SOCIOBOT_BOTS[@]}"; do
+        local STATE="${BOT_STATES[$BOT]}"
+        if [[ "$STATE" == debug ]]; then
+          log_message "DEBUG: Restarting $BOT bot in DEBUG mode"
+          start_single_bot "$BOT" --debug
+        else
+          log_message "Restarting $BOT bot in NORMAL mode"
+          start_single_bot "$BOT"
+        fi
+        sleep 3
+      done
+
+      for BOT in "${MAILBOT_BOTS[@]}"; do
+        local STATE="${BOT_STATES[$BOT]}"
+        if [[ "$STATE" == debug ]]; then
+          log_message "DEBUG: Restarting $BOT mailbot in DEBUG mode"
+          start_single_mailbot "$BOT" --debug
+        else
+          log_message "Restarting $BOT mailbot in NORMAL mode"
+          start_single_mailbot "$BOT"
+        fi
+        sleep 3
+      done
+
+      CURRENT_DATE="$NEW_DATE"
+      log_message "Midnight restart complete -- resuming normal monitoring"
+    fi
 
     # Check system load first - emergency shutdown if too high
     if [ "$(get_load_int)" -gt "$EMERGENCY_LOAD_THRESHOLD" ]; then
@@ -619,7 +711,7 @@ case "${1:-help}" in
   start|run)
     if [[ -n "$2" ]]; then
       # Parse arguments to separate --debug flag from bot names
-      local DEBUG_FLAG=""
+      local DEBUG_FLAG
       local BOT_NAMES=()
 
       shift  # Remove command name
@@ -632,8 +724,8 @@ case "${1:-help}" in
       done
 
       if [[ ${#BOT_NAMES[@]} -eq 0 ]]; then
-        echo "❌ Error: No bot names specified" >&2
-        echo "Valid bots: ${BOTS[*]}" >&2
+        echo ❌ Error: No agents specified >&2
+        echo Valid agents: ${BOTS[*]} >&2
         exit 1
       fi
 
@@ -683,10 +775,11 @@ case "${1:-help}" in
       show_status
     fi
     ;;
+
   restart)
     if [[ -n "$2" ]]; then
       # Parse arguments to separate --debug flag from bot names
-      local DEBUG_FLAG=""
+      local DEBUG_FLAG
       local BOT_NAMES=()
 
       shift  # Remove command name
@@ -700,8 +793,8 @@ case "${1:-help}" in
 
       # FIXME: support restart_all_bots with --debug
       if [[ ${#BOT_NAMES[@]} -eq 0 ]]; then
-        echo "❌ Error: No bot names specified" >&2
-        echo "Valid bots: ${BOTS[*]}" >&2
+        echo ❌ Error: No agents specified >&2
+        echo Valid agents: ${BOTS[*]} >&2
         exit 1
       fi
 
@@ -719,8 +812,8 @@ case "${1:-help}" in
             start_single_mailbot "$BOT_NAME" "$DEBUG_FLAG"
           fi
         else
-          echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
-          echo "Valid bots: ${BOTS[*]}" >&2
+          echo "❌ Error: '$BOT_NAME' is not a valid agent name" >&2
+          echo "Valid agents: ${BOTS[*]}" >&2
           exit 1
         fi
       done
@@ -728,9 +821,11 @@ case "${1:-help}" in
       restart_all_bots
     fi
     ;;
+
   status|st)
     show_status
     ;;
+
   tail)
     # tail is an alias for logs -f (follow mode)
     if [[ -n "$2" ]]; then
@@ -741,12 +836,13 @@ case "${1:-help}" in
         set -- "logs" "$2" "-f"
       fi
     else
-      echo "❌ Error: tail command requires a bot name" >&2
-      echo "Usage: $0 tail <bot_name>" >&2
-      echo "Valid bots: ${BOTS[*]}" >&2
+      echo ❌ Error: tail command requires an agent name >&2
+      echo Usage: $ME tail \<agent\> >&2
+      echo Valid agents: ${BOTS[*]} >&2
       exit 1
     fi
     ;& # fall through to logs case
+
   logs|log)
     if [[ -n "$2" ]]; then
       # Parse arguments: detect bot-name and -f flag
@@ -759,8 +855,8 @@ case "${1:-help}" in
 
       if [[ -n "$BOT_NAME" ]]; then
         if ! is_valid_bot "$BOT_NAME"; then
-          echo "❌ Error: '$BOT_NAME' is not a valid bot name" >&2
-          echo "Valid bots: ${BOTS[*]}" >&2
+          echo "❌ Error: '$BOT_NAME' is not a valid agent name" >&2
+          echo "Valid agents: ${BOTS[*]}" >&2
           exit 1
         fi
 
@@ -779,7 +875,7 @@ case "${1:-help}" in
 
         # Show logs
         if [[ ${#LOG_FILES[@]} -eq 0 ]]; then
-          echo "❌ Error: No log files found for bot '$BOT_NAME'" >&2
+          echo "❌ Error: No log files found for agent '$BOT_NAME'" >&2
           exit 1
         elif [[ ${#LOG_FILES[@]} -eq 1 ]]; then
           # Single log file - show it
@@ -801,7 +897,7 @@ case "${1:-help}" in
       fi
     else
       # Show botctl system logs (platform-specific)
-      if [[ "$(uname)" == "Darwin" ]]; then
+      if [[ "$(uname)" == Darwin ]]; then
         # macOS: use unified logging system
         /usr/bin/log show --predicate 'process == "logger" AND eventMessage CONTAINS "sociobot:"' \
             --info --debug --last 8h --style compact \
@@ -815,50 +911,49 @@ case "${1:-help}" in
         elif [[ -f /var/log/messages ]]; then
           grep "sociobot:" /var/log/messages | tail -n 100
         else
-          echo "❌ Error: Cannot find system logs" >&2
-          echo "Use '$0 logs <bot_name>' to view bot-specific logs" >&2
+          echo ❌ Error: Cannot find system logs >&2
+          echo "Use '$ME logs <agent>' to view agent-specific logs" >&2
           exit 1
         fi
       fi
     fi
     ;;
+
   monitor|mon)
     start_monitor "$2"
     ;;
+
   restart-monitor|rmon)
     stop_monitor
     restart_all_bots
     start_monitor "$2"
     ;;
+
   *)
     HELP_WIDTH=42
-    echo "Usage: $0 <command> [--debug] [bot_name...]"
+    echo "Usage: $ME <command> [--debug] [<agent> ...]"
     echo
     echo These commands run once and exit:
-    printf "  %-${HELP_WIDTH}s - %s\n" "start (run) [--debug] [bot_name...]" "Start all bots or specific bot(s)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "stop (kill) [bot_name...]" "Stop monitor and all bots, or specific bot(s)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "restart [--debug] [bot_name...]" "Restart all bots or specific bot(s)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "status (st)" "Show bot and monitor status"
-    printf "  %-${HELP_WIDTH}s - %s\n" "logs (log) [<bot-name> [-f]]" "Show logs (system or bot-name's log)"
-    printf "  %-${HELP_WIDTH}s   %s\n" "" "[-f] follow bot log until interrupted"
-    printf "  %-${HELP_WIDTH}s - %s\n" "tail <bot-name>" "Follow bot-name's log (alias for logs -f)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "help" "Show this help message"
+    printf "  %-${HELP_WIDTH}s# %s\n" "start (run) [--debug] [<agent> ...]" "Start all bots or only specified agent(s)' bot(s)"
+    printf "  %-${HELP_WIDTH}s# %s\n" "stop (kill) [<agent> ...]" "Stop monitor and all bots, or only specified agent(s)' bot(s)"
+    printf "  %-${HELP_WIDTH}s# %s\n" "restart [--debug] [bot_name...]" "Restart all or specific bot(s)"
+    printf "  %-${HELP_WIDTH}s# %s\n" "status (st)" "Show bot and monitor status"
+    printf "  %-${HELP_WIDTH}s# %s\n" "logs (log) [<agent> [-f]]" "Show logs (system or agent's bot log(s))"
+    printf "  %-${HELP_WIDTH}s  %s\n" "" "[-f] follow agent's bot log(s) until interrupted"
+    printf "  %-${HELP_WIDTH}s# %s\n" "tail <agent>" "same as above (alias for logs -f)"
+    printf "  %-${HELP_WIDTH}s# %s\n" help "Show this help message"
     echo
     echo These commands run continuously until interrupted:
-    printf "  %-${HELP_WIDTH}s - %s\n" "monitor (mon) [-fg]" "Monitor bots (background by default, -fg for foreground)"
-    printf "  %-${HELP_WIDTH}s - %s\n" "restart-monitor (rmon) [-fg]" "Stop monitor, restart bots, start new monitor"
+    printf "  %-${HELP_WIDTH}s# %s\n" "monitor (mon) [-fg]" "Monitor bots (background by default, -fg for foreground)"
+    printf "  %-${HELP_WIDTH}s# %s\n" "restart-monitor (rmon) [-fg]" "Stop monitor, restart bots, start new monitor"
     echo
     echo Options:
-    printf "  %-${HELP_WIDTH}s - %s\n" "--debug" "Enable verbose debug logging (applies to all bots)"
+    printf "  %-${HELP_WIDTH}s# %s\n" --debug "Enable verbose debug logging (applies to all bots)"
     echo
-    echo "Valid bot names: ${BOTS[*]}"
+    echo Valid agent names: ${BOTS[*]}
     echo
     echo Examples:
-    echo "  $0 start <bot>                 # Start single bot"
-    echo "  $0 start <bot1> <bot2>         # Start multiple bots"
-    echo "  $0 start --debug <bot1> <bot2> # Start multiple bots with debug logging"
-    echo "  $0 stop <bot1> <bot2>          # Stop multiple bots"
-    echo "  $0 restart --debug <bot>       # Restart bot with debug logging"
+    echo "  $ME restart --debug <agent>            # Restart agent's bot(s) with debug logging"
     exit 1
     ;;
 esac
