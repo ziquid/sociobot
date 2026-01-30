@@ -5,10 +5,10 @@
 ### Technical Debt
 
 - [  ] Convert helper scripts to TypeScript
-   - [  ] list goes here
+   - [x] create-webhooks.ts - Converted with dynamic agent discovery
 
 - [  ] Add sb- prefix to helper bin entries
-   - [  ] list goes here
+   - [x] sb-create-webhooks - Installed as global command
 
 ### New Functionality
 

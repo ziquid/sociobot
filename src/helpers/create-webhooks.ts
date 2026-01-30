@@ -27,7 +27,7 @@
 
 import { Client, GatewayIntentBits, TextChannel } from 'discord.js';
 import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
 import path from 'path';
 
 interface BotConfig {
@@ -42,26 +42,87 @@ interface WebhookResult {
   webhookUrl: string;
 }
 
-// Bot configurations
-const BOTS: BotConfig[] = [
-  { name: 'test-agent', displayName: 'Test Agent' }
-];
+/**
+ * Dynamically discover agents with sociobot profiles
+ * Mirrors the logic from botctl for consistency
+ */
+function discoverSociobotAgents(): BotConfig[] {
+  const agents: BotConfig[] = [];
+  const hostId = process.env.ZDS_AI_HOST_ID;
+
+  if (!hostId) {
+    console.error('ZDS_AI_HOST_ID not set');
+    return agents;
+  }
+
+  // Get all agent directories from /opt/agents
+  const agentsDir = '/opt/agents';
+  if (!existsSync(agentsDir)) {
+    console.error(`Agents directory not found: ${agentsDir}`);
+    return agents;
+  }
+
+  const allAgents = readdirSync(agentsDir, { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name);
+
+  for (const agent of allAgents) {
+    const configFile = `/opt/agents/${agent}/.zds-ai/config.zds.yml`;
+
+    // Skip if no config file
+    if (!existsSync(configFile)) continue;
+
+    try {
+      const configContent = readFileSync(configFile, 'utf8');
+
+      // Check installed_host_id matches
+      const hostIdMatch = configContent.match(/^installed_host_id:\s*(.+)$/m);
+      if (!hostIdMatch || hostIdMatch[1].trim() !== hostId) continue;
+
+      // Check for sociobot section
+      if (configContent.match(/^sociobot:/m)) {
+        // Extract display name from config if available, otherwise use capitalized agent name
+        const displayNameMatch = configContent.match(/^\s+display_name:\s*(.+)$/m);
+        const displayName = displayNameMatch
+          ? displayNameMatch[1].trim().replace(/^["']|["']$/g, '')
+          : agent.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+        agents.push({ name: agent, displayName });
+      }
+    } catch (error) {
+      console.error(`Error reading config for ${agent}:`, (error as Error).message);
+    }
+  }
+
+  return agents;
+}
 
 async function createWebhooks(channelId: string, targetBot?: string): Promise<void> {
   console.log('Discord Webhook Creator Starting...');
   console.log(`Target Channel ID: ${channelId}`);
 
+  // Discover all agents with sociobot profiles
+  const discoveredBots = discoverSociobotAgents();
+
+  if (discoveredBots.length === 0) {
+    console.error('No agents with sociobot profiles found');
+    console.error('Make sure agents have config.zds.yml with sociobot: section');
+    process.exit(1);
+  }
+
+  console.log(`Discovered ${discoveredBots.length} agent(s) with sociobot profiles: ${discoveredBots.map(b => b.name).join(', ')}`);
+
   // Filter bots if specific bot requested
-  let botsToCreate = BOTS;
+  let botsToCreate = discoveredBots;
   if (targetBot) {
-    botsToCreate = BOTS.filter(bot => bot.name === targetBot);
+    botsToCreate = discoveredBots.filter(bot => bot.name === targetBot);
     if (botsToCreate.length === 0) {
-      console.error(`Bot '${targetBot}' not found. Available bots: ${BOTS.map(b => b.name).join(', ')}`);
+      console.error(`Bot '${targetBot}' not found. Available bots: ${discoveredBots.map(b => b.name).join(', ')}`);
       process.exit(1);
     }
     console.log(`Creating webhook only for: ${targetBot}`);
   } else {
-    console.log(`Creating webhooks for all bots`);
+    console.log(`Creating webhooks for all ${discoveredBots.length} bot(s)`);
   }
 
   // Use admin bot's token for webhook creation (admin privileges)
