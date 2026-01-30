@@ -24,4 +24,5 @@
 - [✅] qcli forwarding empty responses to Discord after stripping think tags (#70)
 - [✅] Double ACL limits for thread participants (#71)
 - [✅] DM channel name showing "undefined" when recipient.username is null (#72)
-- [  ]
+- [✅] botctl bad pattern error in help message (#77)
+- [✅] Triple ACL for agents mentioned or message authors (#80)

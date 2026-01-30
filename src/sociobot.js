@@ -411,7 +411,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
         }
 
         try {
-          await sendLongMessage(message, responseText, DEBUG);
+          await sendLongMessage(message, responseText, DEBUG, null, AGENT_NAME);
           log(`Discord delivery SUCCESS for message ${response.messageId}`);
           if (!highestProcessedId || message.id > highestProcessedId) {
             highestProcessedId = message.id;
@@ -636,7 +636,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
             }
 
             try {
-              await sendLongMessage(message, responseText, DEBUG);
+              await sendLongMessage(message, responseText, DEBUG, null, AGENT_NAME);
               log(`Bot-dms Discord delivery SUCCESS for message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
                 highestProcessedId = message.id;
@@ -1060,7 +1060,7 @@ async function handleRealtimeMessage(message) {
               }
             }
 
-            await sendLongMessage(message, responseText, DEBUG, audioPath);
+            await sendLongMessage(message, responseText, DEBUG, audioPath, AGENT_NAME);
             log(`Real-time Discord delivery SUCCESS for message ${message.id}${audioPath ? ' with audio' : ''}`);
             // Save persistence immediately after successful delivery
             saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);

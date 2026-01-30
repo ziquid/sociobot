@@ -5,7 +5,7 @@ import { join } from "path";
 import { ChannelType } from "discord.js";
 import https from "https";
 import http from "http";
-import { getACL, getMaxACL, addResponseGuidance, hasParticipatedInThread } from "./metadata.js";
+import { getACL, getMaxACL, addResponseGuidance, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor } from "./metadata.js";
 
 /**
  * Expand tilde in path to home directory
@@ -410,12 +410,20 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
     const currentACL = getACL(message);
     const maxACL = getMaxACL(channel, debug);
 
-    // Check if this agent has participated in the thread
+    // Check if this agent was mentioned, authored message/parent, or participated in thread
     const botUserId = message.client.user.id;
+    const wasMentioned = wasMentionedInMessage(message, botUserId, agentName);
+    const isAuthor = await isMessageAuthor(message, botUserId);
     const hasParticipated = await hasParticipatedInThread(message, botUserId);
 
-    // Double ACL limit if agent participated in thread
-    const effectiveMaxACL = hasParticipated ? maxACL * 2 : maxACL;
+    // Calculate effective ACL limit: mentioned OR author (3x) > participated (2x) > normal (1x)
+    let effectiveMaxACL = maxACL;
+    if (wasMentioned || isAuthor) {
+      effectiveMaxACL = maxACL * 3;
+    } else if (hasParticipated) {
+      effectiveMaxACL = maxACL * 2;
+    }
+
     const wouldExceedACL = currentACL > effectiveMaxACL;
     const isAtACLLimit = currentACL === effectiveMaxACL;
 
@@ -518,8 +526,8 @@ ${convertedContent}`;
       attachments_count: message.attachments.size
     });
 
-    // Add response guidance based on ACL state and thread participation
-    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated);
+    // Add response guidance based on ACL state, mentions, authorship, and thread participation
+    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned, isAuthor);
 
     if (debug) {
       console.log('=== REALTIME QUERY ===');
@@ -544,7 +552,8 @@ ${convertedContent}`;
     // If at ACL limit, allow only REACTION responses
     if (isAtACLLimit) {
       if (debug) {
-        log(`At ACL limit (${currentACL} === ${effectiveMaxACL})${hasParticipated ? ' (doubled for thread participation)' : ''}, marking as aclLimited for REACTION-only handling`);
+        const reason = wasMentioned ? ' (tripled for mention)' : (hasParticipated ? ' (doubled for thread participation)' : '');
+        log(`At ACL limit (${currentACL} === ${effectiveMaxACL})${reason}, marking as aclLimited for REACTION-only handling`);
       }
       return response ? { response, hadTranscription, aclLimited: true } : null;
     }
@@ -552,7 +561,8 @@ ${convertedContent}`;
     // If beyond ACL limit, block entirely
     if (wouldExceedACL) {
       if (debug) {
-        log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL})${hasParticipated ? ' (doubled for thread participation)' : ''}, blocking response`);
+        const reason = wasMentioned ? ' (tripled for mention)' : (hasParticipated ? ' (doubled for thread participation)' : '');
+        log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL})${reason}, blocking response`);
       }
       return null;
     }

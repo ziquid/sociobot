@@ -4,7 +4,7 @@
  */
 
 import { EmbedBuilder } from 'discord.js';
-import { createFooter, getACL, getMaxACL, hasParticipatedInThread } from './metadata.js';
+import { createFooter, getACL, getMaxACL, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor } from './metadata.js';
 
 /** @constant {number} Maximum characters allowed in a Discord message */
 const DISCORD_MESSAGE_LIMIT = 2000;
@@ -94,7 +94,7 @@ export function splitMessage(content) {
  * @param {string|null} audioPath - Optional path to audio file to attach to first message
  * @returns {Promise<void>}
  */
-export async function sendLongMessage(message, content, debug = false, audioPath = null) {
+export async function sendLongMessage(message, content, debug = false, audioPath = null, agentName = null) {
   // Strip <think></think> tags before processing
   const cleanedContent = stripThinkTags(content);
 
@@ -102,12 +102,19 @@ export async function sendLongMessage(message, content, debug = false, audioPath
   const acl = getACL(message);
   const maxACL = getMaxACL(message.channel, debug);
 
-  // Check if this agent has participated in the thread
+  // Check if this agent was mentioned, authored message/parent, or participated in thread
   const botUserId = message.client.user.id;
+  const wasMentioned = agentName ? wasMentionedInMessage(message, botUserId, agentName) : false;
+  const isAuthor = await isMessageAuthor(message, botUserId);
   const hasParticipated = await hasParticipatedInThread(message, botUserId);
 
-  // Double ACL limit if agent participated in thread
-  const effectiveMaxACL = hasParticipated ? maxACL * 2 : maxACL;
+  // Calculate effective ACL limit: mentioned OR author (3x) > participated (2x) > normal (1x)
+  let effectiveMaxACL = maxACL;
+  if (wasMentioned || isAuthor) {
+    effectiveMaxACL = maxACL * 3;
+  } else if (hasParticipated) {
+    effectiveMaxACL = maxACL * 2;
+  }
 
   // Block sending if ACL would exceed maximum
   if (acl >= effectiveMaxACL) {

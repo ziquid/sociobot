@@ -108,17 +108,90 @@ export async function hasParticipatedInThread(message, botUserId, maxDepth = 20)
 }
 
 /**
+ * Check if a specific bot authored the message or its immediate parent
+ * @param {Object} message - Discord message object
+ * @param {string} botUserId - Bot user ID to check for
+ * @returns {Promise<boolean>} - True if bot authored message or parent
+ */
+export async function isMessageAuthor(message, botUserId) {
+  // Check if this bot authored the message we're replying to
+  if (message.reference?.messageId) {
+    try {
+      const referencedMessage = await message.channel.messages.fetch(message.reference.messageId);
+      if (referencedMessage.author.bot && referencedMessage.author.id === botUserId) {
+        return true;
+      }
+
+      // Check the parent of the referenced message (grandparent)
+      if (referencedMessage.reference?.messageId) {
+        try {
+          const parentMessage = await message.channel.messages.fetch(referencedMessage.reference.messageId);
+          if (parentMessage.author.bot && parentMessage.author.id === botUserId) {
+            return true;
+          }
+        } catch (error) {
+          // Couldn't fetch grandparent, that's ok
+        }
+      }
+    } catch (error) {
+      // Couldn't fetch referenced message, that's ok
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if a specific bot was mentioned in the message
+ * @param {Object} message - Discord message object
+ * @param {string} botUserId - Bot user ID to check for
+ * @param {string} agentName - Agent name to check for (e.g., "aiden", "tess")
+ * @returns {boolean} - True if bot was mentioned (via @tag or by name)
+ */
+export function wasMentionedInMessage(message, botUserId, agentName) {
+  // Check for @mention (direct user mention)
+  if (message.mentions.users.has(botUserId)) {
+    return true;
+  }
+
+  // Check for name mention in message content (case-insensitive)
+  const content = message.content.toLowerCase();
+  const agentNameLower = agentName.toLowerCase();
+
+  // Check for agent name as a whole word (not part of another word)
+  // Use word boundary regex to avoid matching "maiden" when looking for "aiden"
+  const namePattern = new RegExp(`\\b${agentNameLower}\\b`, 'i');
+  if (namePattern.test(content)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Add response guidance to query based on current ACL state
  * @param {string} query - Original query content
  * @param {number} currentACL - Current ACL value
  * @param {number} maxACL - Maximum ACL allowed
  * @param {boolean} debug - Enable debug logging
  * @param {boolean} hasParticipated - Whether agent already participated in thread
+ * @param {boolean} wasMentioned - Whether agent was directly mentioned in message
+ * @param {boolean} isAuthor - Whether agent authored the message or its immediate parent
  * @returns {string} - Query with appropriate response guidance
  */
-export function addResponseGuidance(query, currentACL, maxACL, debug = false, hasParticipated = false) {
-  // If agent participated in thread, they get double the ACL limit
-  const effectiveMaxACL = hasParticipated ? maxACL * 2 : maxACL;
+export function addResponseGuidance(query, currentACL, maxACL, debug = false, hasParticipated = false, wasMentioned = false, isAuthor = false) {
+  // Calculate effective ACL limit based on conditions
+  // Priority: mentioned OR author (3x) > participated (2x) > normal (1x)
+  let effectiveMaxACL = maxACL;
+  let reason = '';
+
+  if (wasMentioned || isAuthor) {
+    effectiveMaxACL = maxACL * 3;
+    reason = wasMentioned ? 'mentioned' : 'author';
+  } else if (hasParticipated) {
+    effectiveMaxACL = maxACL * 2;
+    reason = 'participated';
+  }
 
   if (currentACL === effectiveMaxACL) {
     if (debug) {
@@ -130,13 +203,20 @@ export function addResponseGuidance(query, currentACL, maxACL, debug = false, ha
       console.log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL}), adding courtesy message`);
     }
     return query + ACL_COURTESY_MESSAGE;
-  } else if (hasParticipated && currentACL >= maxACL && currentACL < effectiveMaxACL) {
-    // Agent is beyond normal limit but within their doubled limit
-    const participantMessage = `\n\nNote: Since you already participated in this message thread, your ACL limit is ${effectiveMaxACL} (doubled from ${maxACL}). You are currently at ACL ${currentACL + 1}.`;
-    if (debug) {
-      console.log(`Agent participated in thread, has doubled ACL limit: ${effectiveMaxACL}`);
+  } else if ((wasMentioned || isAuthor || hasParticipated) && currentACL >= maxACL && currentACL < effectiveMaxACL) {
+    // Agent is beyond normal limit but within their increased limit
+    let message = '';
+    if (wasMentioned) {
+      message = `\n\nNote: Since you were explicitly mentioned in this message, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}). You are currently at ACL ${currentACL + 1}.`;
+    } else if (isAuthor) {
+      message = `\n\nNote: Since you created the message or its parent, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}). You are currently at ACL ${currentACL + 1}.`;
+    } else if (hasParticipated) {
+      message = `\n\nNote: Since you already participated in this message thread, your ACL limit is ${effectiveMaxACL} (doubled from ${maxACL}). You are currently at ACL ${currentACL + 1}.`;
     }
-    return query + participantMessage;
+    if (debug) {
+      console.log(`Agent ${reason} in thread, has ${reason === 'mentioned' || reason === 'author' ? 'tripled' : 'doubled'} ACL limit: ${effectiveMaxACL}`);
+    }
+    return query + message;
   }
 
   return query;
