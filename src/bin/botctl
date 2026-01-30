@@ -931,7 +931,7 @@ case "${1:-help}" in
 
   *)
     HELP_WIDTH=42
-    echo Usage: $ME \<command\> [--debug] [\<agent\> ...]
+    echo "Usage: $ME <command> [--debug] [<agent> ...]"
     echo
     echo These commands run once and exit:
     printf "  %-${HELP_WIDTH}s# %s\n" "start (run) [--debug] [<agent> ...]" "Start all bots or only specified agent(s)' bot(s)"
