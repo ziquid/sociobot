@@ -77,7 +77,11 @@ function discoverSociobotAgents(): BotConfig[] {
 
       // Check installed_host_id matches
       const hostIdMatch = configContent.match(/^installed_host_id:\s*(.+)$/m);
-      if (!hostIdMatch || hostIdMatch[1].trim() !== hostId) continue;
+      if (!hostIdMatch) continue;
+
+      // Strip quotes and whitespace from the matched host ID
+      const configHostId = hostIdMatch[1].trim().replace(/^["']|["']$/g, '');
+      if (configHostId !== hostId) continue;
 
       // Check for sociobot section
       if (configContent.match(/^sociobot:/m)) {
