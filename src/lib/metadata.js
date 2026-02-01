@@ -150,7 +150,7 @@ export async function isMessageAuthor(message, botUserId) {
  */
 export function wasMentionedInMessage(message, botUserId, agentName) {
   // Check for @mention (direct user mention)
-  if (message.mentions.users.has(botUserId)) {
+  if (message.mentions?.users?.has(botUserId)) {
     return true;
   }
 
