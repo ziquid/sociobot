@@ -26,3 +26,7 @@
 - [✅] DM channel name showing "undefined" when recipient.username is null (#72)
 - [✅] botctl bad pattern error in help message (#77)
 - [✅] Triple ACL for agents mentioned or message authors (#80)
+- [✅] Fix botctl monitor persistence in Linux containers (#82)
+   - Made setsid conditional based on container detection
+   - Uses setsid in containers (/.dockerenv or /run/.containerenv)
+   - Falls back to nohup on Mac/non-container environments

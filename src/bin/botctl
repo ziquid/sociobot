@@ -610,12 +610,15 @@ show_status() {
 
 monitor_loop() {
   if is_monitor_running; then
+    log_message "❌ Monitor startup failed: Another monitor already running (PID $(cat "$PIDFILE"))"
     die 1 "❌ Monitor already running (PID $(cat "$PIDFILE"))"
   fi
 
   MONITORING=true
   echo $$ > "$PIDFILE"
-  trap 'rm -f "$PIDFILE"; die 0 "Monitor stopped"' EXIT
+  trap 'rm -f "$PIDFILE"; log_message "Monitor process exiting (trap EXIT)"; die 0 "Monitor stopped"' EXIT
+  trap 'log_message "⚠️  Monitor received SIGTERM"; exit 143' TERM
+  trap 'log_message "⚠️  Monitor received SIGINT"; exit 130' INT
 
   log_message ===============================
   log_message "NEW MONITOR SESSION STARTED, PID $$"
@@ -691,8 +694,18 @@ monitor_loop() {
 
 start_monitor() {
   if [[ "$1" != --foreground && "$1" != -fg ]]; then
-    nohup botctl monitor --foreground > /dev/null 2>&1 &
-    echo "🔍 Monitor started in background (PID $!)"
+    # Use setsid in containers for proper process detachment, nohup elsewhere
+    # Check for container indicators: /.dockerenv or /run/.containerenv
+    if [[ -f /.dockerenv || -f /run/.containerenv ]] && command -v setsid >/dev/null 2>&1; then
+      log_message "🚀 Starting monitor with setsid (container environment)"
+      setsid botctl monitor --foreground > /dev/null 2>&1 &
+    else
+      log_message "🚀 Starting monitor with nohup (host/macOS)"
+      nohup botctl monitor --foreground > /dev/null 2>&1 &
+    fi
+    local monitor_pid=$!
+    log_message "🔍 Monitor launched with PID $monitor_pid"
+    echo "🔍 Monitor started in background (PID $monitor_pid)"
     exit 0
   fi
   monitor_loop
