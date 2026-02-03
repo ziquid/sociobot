@@ -428,7 +428,7 @@ check_and_restart_bot() {
       log_message "🚫 $BOT_NAME bot down but load too high ($(get_load_avg) > $MAX_LOAD_THRESHOLD) -- skipping restart (count: $HIGH_LOAD_COUNT/$MAX_HIGH_LOAD_COUNT)"
 
       if [ "$HIGH_LOAD_COUNT" -ge "$MAX_HIGH_LOAD_COUNT" ]; then
-        die 1 "❌ System load too high for too long - exiting monitor"
+        die 1 "❌ System load too high for too long -- exiting monitor"
       fi
 
       sleep 29
@@ -442,6 +442,34 @@ check_and_restart_bot() {
     start_single_bot "$BOT_NAME"
   else
     log_message "✅ $BOT_NAME bot running normally"
+  fi
+}
+
+check_and_restart_mailbot() {
+  declare -r BOT_NAME="$1"
+
+  # Check if mailbot process is running
+  if ! is_mailbot_running "$BOT_NAME"; then
+    # Check system load before restarting
+    if [ "$(get_load_int)" -gt "$MAX_LOAD_THRESHOLD" ]; then
+      HIGH_LOAD_COUNT=$((HIGH_LOAD_COUNT + 1))
+      log_message "🚫 $BOT_NAME mailbot down but load too high ($(get_load_avg) > $MAX_LOAD_THRESHOLD) -- skipping restart (count: $HIGH_LOAD_COUNT/$MAX_HIGH_LOAD_COUNT)"
+
+      if [ "$HIGH_LOAD_COUNT" -ge "$MAX_HIGH_LOAD_COUNT" ]; then
+        die 1 "❌ System load too high for too long -- exiting monitor"
+      fi
+
+      sleep 29
+      return
+    else
+      # Reset counter on normal load
+      HIGH_LOAD_COUNT=0
+    fi
+
+    log_message "⚠️  $BOT_NAME mailbot not running -- restarting..."
+    start_single_mailbot "$BOT_NAME"
+  else
+    log_message "✅ $BOT_NAME mailbot running normally"
   fi
 }
 
@@ -682,9 +710,14 @@ monitor_loop() {
       die 2 "System load too high"
     fi
 
-    # Check each bot
-    for BOT in "${BOTS[@]}"; do
+    # Check each sociobot
+    for BOT in "${SOCIOBOT_BOTS[@]}"; do
       check_and_restart_bot "$BOT"
+    done
+
+    # Check each mailbot
+    for BOT in "${MAILBOT_BOTS[@]}"; do
+      check_and_restart_mailbot "$BOT"
     done
 
     # Wait 30 seconds before next check
