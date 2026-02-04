@@ -2,53 +2,131 @@
 
 /**
  * Discord Webhook Creator for ZDS Bot Infrastructure
- * 
+ *
  * Purpose: Creates unique webhooks for each bot to prevent message cross-contamination
  * Author: ZDS AI Team
  * Date: 2025-09-16
- * 
+ * Updated: 2026-01-21 - Converted to TypeScript
+ *
  * PROBLEM SOLVED:
  * - All bots were sharing the same webhook (legacy shared webhook)
  * - This caused identity confusion and message routing issues
  * - Each bot needs its own webhook for proper isolation
- * 
+ *
  * USAGE:
- *   ./create-webhooks.js <channel-id>
- * 
+ *   ./create-webhooks.ts <channel-id>
+ *
  * EXAMPLE:
- *   ./create-webhooks.js 1417639609231347812
- * 
+ *   ./create-webhooks.ts 1417639609231347812
+ *
  * REQUIREMENTS:
  * - Discord bot token with webhook creation permissions
  * - Channel ID where webhooks should be created
  * - Write access to .env files for updating credentials
  */
 
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, TextChannel } from 'discord.js';
 import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
 import path from 'path';
 
-// Bot configurations
-const BOTS = [
-  { name: 'test-agent', displayName: 'Test Agent' }
-];
+interface BotConfig {
+  name: string;
+  displayName: string;
+}
 
-async function createWebhooks(channelId, targetBot) {
-  console.log('🔧 Discord Webhook Creator Starting...');
-  console.log(`📍 Target Channel ID: ${channelId}`);
+interface WebhookResult {
+  botName: string;
+  webhookId: string;
+  webhookToken: string;
+  webhookUrl: string;
+}
+
+/**
+ * Dynamically discover agents with sociobot profiles
+ * Mirrors the logic from botctl for consistency
+ */
+function discoverSociobotAgents(): BotConfig[] {
+  const agents: BotConfig[] = [];
+  const hostId = process.env.ZDS_AI_HOST_ID;
+
+  if (!hostId) {
+    console.error('ZDS_AI_HOST_ID not set');
+    return agents;
+  }
+
+  // Get all agent directories from /opt/agents
+  const agentsDir = '/opt/agents';
+  if (!existsSync(agentsDir)) {
+    console.error(`Agents directory not found: ${agentsDir}`);
+    return agents;
+  }
+
+  const allAgents = readdirSync(agentsDir, { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name);
+
+  for (const agent of allAgents) {
+    const configFile = `/opt/agents/${agent}/.zds-ai/config.zds.yml`;
+
+    // Skip if no config file
+    if (!existsSync(configFile)) continue;
+
+    try {
+      const configContent = readFileSync(configFile, 'utf8');
+
+      // Check installed_host_id matches
+      const hostIdMatch = configContent.match(/^installed_host_id:\s*(.+)$/m);
+      if (!hostIdMatch) continue;
+
+      // Strip quotes and whitespace from the matched host ID
+      const configHostId = hostIdMatch[1].trim().replace(/^["']|["']$/g, '');
+      if (configHostId !== hostId) continue;
+
+      // Check for sociobot section
+      if (configContent.match(/^sociobot:/m)) {
+        // Extract display name from config if available, otherwise use capitalized agent name
+        const displayNameMatch = configContent.match(/^\s+display_name:\s*(.+)$/m);
+        const displayName = displayNameMatch
+          ? displayNameMatch[1].trim().replace(/^["']|["']$/g, '')
+          : agent.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+        agents.push({ name: agent, displayName });
+      }
+    } catch (error) {
+      console.error(`Error reading config for ${agent}:`, (error as Error).message);
+    }
+  }
+
+  return agents;
+}
+
+async function createWebhooks(channelId: string, targetBot?: string): Promise<void> {
+  console.log('Discord Webhook Creator Starting...');
+  console.log(`Target Channel ID: ${channelId}`);
+
+  // Discover all agents with sociobot profiles
+  const discoveredBots = discoverSociobotAgents();
+
+  if (discoveredBots.length === 0) {
+    console.error('No agents with sociobot profiles found');
+    console.error('Make sure agents have config.zds.yml with sociobot: section');
+    process.exit(1);
+  }
+
+  console.log(`Discovered ${discoveredBots.length} agent(s) with sociobot profiles: ${discoveredBots.map(b => b.name).join(', ')}`);
 
   // Filter bots if specific bot requested
-  let botsToCreate = BOTS;
+  let botsToCreate = discoveredBots;
   if (targetBot) {
-    botsToCreate = BOTS.filter(bot => bot.name === targetBot);
+    botsToCreate = discoveredBots.filter(bot => bot.name === targetBot);
     if (botsToCreate.length === 0) {
-      console.error(`❌ Bot '${targetBot}' not found. Available bots: ${BOTS.map(b => b.name).join(', ')}`);
+      console.error(`Bot '${targetBot}' not found. Available bots: ${discoveredBots.map(b => b.name).join(', ')}`);
       process.exit(1);
     }
-    console.log(`📌 Creating webhook only for: ${targetBot}`);
+    console.log(`Creating webhook only for: ${targetBot}`);
   } else {
-    console.log(`📌 Creating webhooks for all bots`);
+    console.log(`Creating webhooks for all ${discoveredBots.length} bot(s)`);
   }
 
   // Use admin bot's token for webhook creation (admin privileges)
@@ -71,63 +149,63 @@ async function createWebhooks(channelId, targetBot) {
     }
 
     await client.login(tokenMatch[1]);
-    console.log('✅ Connected to Discord');
+    console.log('Connected to Discord');
 
     const channel = await client.channels.fetch(channelId);
-    if (!channel) {
+    if (!channel || !(channel instanceof TextChannel)) {
       throw new Error(`Channel ${channelId} not found`);
     }
 
-    console.log(`📢 Creating webhooks in channel: ${channel.name}`);
+    console.log(`Creating webhooks in channel: ${channel.name}`);
 
-    const webhookResults = [];
+    const webhookResults: WebhookResult[] = [];
 
     for (const bot of botsToCreate) {
-      console.log(`\n🤖 Creating webhook for ${bot.name}...`);
-      
+      console.log(`\nCreating webhook for ${bot.name}...`);
+
       try {
         const webhook = await channel.createWebhook({
           name: bot.displayName,
           reason: `Webhook for ${bot.name} bot`
         });
-        
-        const result = {
+
+        const result: WebhookResult = {
           botName: bot.name,
           webhookId: webhook.id,
-          webhookToken: webhook.token,
+          webhookToken: webhook.token!,
           webhookUrl: webhook.url
         };
-        
+
         webhookResults.push(result);
-        
-        console.log(`✅ ${bot.name} webhook created:`);
+
+        console.log(`${bot.name} webhook created:`);
         console.log(`   ID: ${webhook.id}`);
-        console.log(`   Token: ${webhook.token.substring(0, 20)}...`);
-        
+        console.log(`   Token: ${webhook.token!.substring(0, 20)}...`);
+
         // Update the bot's .env file
         await updateEnvFile(bot.name, result);
-        
+
       } catch (error) {
-        console.error(`❌ Failed to create webhook for ${bot.name}:`, error.message);
+        console.error(`Failed to create webhook for ${bot.name}:`, (error as Error).message);
       }
     }
-    
+
     // Create documentation
     await createWebhookDocumentation(webhookResults, channelId);
-    
-    console.log('\n🎉 Webhook creation complete!');
-    console.log('📋 Documentation saved to WEBHOOKS.md');
-    console.log('⚠️  Remember to restart all bots to use new webhooks');
-    
+
+    console.log('\nWebhook creation complete!');
+    console.log('Documentation saved to WEBHOOKS.md');
+    console.log('Remember to restart all bots to use new webhooks');
+
   } catch (error) {
-    console.error('❌ Webhook creation failed:', error.message);
+    console.error('Webhook creation failed:', (error as Error).message);
     process.exit(1);
   } finally {
     await client.destroy();
   }
 }
 
-async function updateEnvFile(botName, webhookData) {
+async function updateEnvFile(botName: string, webhookData: WebhookResult): Promise<void> {
   // Resolve agent home directory
   const homeDir = process.env.ZDS_AI_AGENT_HOME_DIR ||
                   execSync(`echo ~${botName}`).toString().trim();
@@ -145,16 +223,16 @@ async function updateEnvFile(botName, webhookData) {
     envContent = envContent.replace(/WEBHOOK_TOKEN=.*/, `WEBHOOK_TOKEN=${webhookData.webhookToken}`);
 
     writeFileSync(envPath, envContent);
-    console.log(`   📝 Updated ${envPath}`);
+    console.log(`   Updated ${envPath}`);
 
   } catch (error) {
-    console.error(`   ❌ Failed to update ${envPath}:`, error.message);
+    console.error(`   Failed to update ${envPath}:`, (error as Error).message);
   }
 }
 
-async function createWebhookDocumentation(webhookResults, channelId) {
+async function createWebhookDocumentation(webhookResults: WebhookResult[], channelId: string): Promise<void> {
   const timestamp = new Date().toISOString();
-  
+
   const documentation = `# Discord Webhook Documentation
 
 **Created:** ${timestamp}
@@ -166,7 +244,7 @@ async function createWebhookDocumentation(webhookResults, channelId) {
 
 Previously, all bots shared the same webhook credentials (legacy shared webhook), causing:
 - Identity confusion between bots
-- Message routing issues  
+- Message routing issues
 - Inability for bots to communicate with each other properly
 
 ## Solution
@@ -187,7 +265,7 @@ ${webhookResults.map(webhook => `
 
 ### To Recreate Webhooks:
 \`\`\`bash
-./create-webhooks.js <channel-id>
+./create-webhooks.ts <channel-id>
 \`\`\`
 
 ### To Restart Bots After Webhook Changes:
@@ -221,18 +299,18 @@ cat .env.test-agent | grep WEBHOOK
 3. Check Discord API rate limits
 
 ---
-*This documentation was auto-generated by create-webhooks.js*
+*This documentation was auto-generated by create-webhooks.ts*
 *Keep this file updated when making webhook changes*
 `;
 
-  fs.writeFileSync('WEBHOOKS.md', documentation);
+  writeFileSync('WEBHOOKS.md', documentation);
 }
 
 // Main execution
 if (process.argv.length < 3) {
-  console.error('Usage: ./create-webhooks.js <channel-id> [bot-name]');
-  console.error('Example: ./create-webhooks.js 1417639609231347812');
-  console.error('Example: ./create-webhooks.js 1417639609231347812 test-agent');
+  console.error('Usage: ./create-webhooks.ts <channel-id> [bot-name]');
+  console.error('Example: ./create-webhooks.ts 1417639609231347812');
+  console.error('Example: ./create-webhooks.ts 1417639609231347812 test-agent');
   process.exit(1);
 }
 

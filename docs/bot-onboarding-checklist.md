@@ -128,7 +128,7 @@
 ## Step 4: Create Webhooks
 
 ### 4.1 Create Bot Webhook (bot or user)
-- [ ] Run: `node create-webhooks.js <channel-id> <bot-name>`
+- [ ] Run: `sb-create-webhooks <channel-id> <bot-name>`
 - [ ] If you get "Maximum number of webhooks reached (15)" error:
   - Run `node check-webhooks.js <channel-id>` to see existing webhooks
   - Manually delete old/duplicate webhooks in Discord:
@@ -137,7 +137,7 @@
     3. Click on each old webhook
     4. Click "Delete Webhook" button at bottom
     5. Confirm deletion
-  - Re-run `node create-webhooks.js <channel-id> <bot-name>`
+  - Re-run `sb-create-webhooks <channel-id> <bot-name>`
 
 ### 4.2 Update Environment File (bot or user)
 - [ ] Webhook ID and token automatically updated in `~<bot-name>/.env` by script
