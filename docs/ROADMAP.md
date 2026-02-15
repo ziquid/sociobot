@@ -37,3 +37,4 @@
 - [✅] Fix botctl mon not monitoring or restarting mailbots (#91)
    - Added check_and_restart_mailbot() function
    - monitor_loop() now checks both SOCIOBOT_BOTS and MAILBOT_BOTS separately
+- [✅] Add GEMINI_API_KEY to list of env vars to provide each bot
