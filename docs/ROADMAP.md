@@ -10,6 +10,10 @@
 - [  ] Add sb- prefix to helper bin entries
    - [x] sb-create-webhooks - Installed as global command
 
+- [✅] Refactor channel delay checking into separate function (#93)
+   - Extracted inline delay logic into shouldDelayMessageSend() function
+   - Enables future expansion of delay conditions without cluttering message handler
+
 ### New Functionality
 
 - [✅] botctl monitor midnight restart (#61)

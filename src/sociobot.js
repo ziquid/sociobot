@@ -913,6 +913,20 @@ async function checkGuildChannels(readyClient, lastMessages) {
   }
 }
 
+async function shouldDelayMessageSend(message, client) {
+  // Active slowdown? Delay.
+  const channelSlowdown = await getChannelSlowdown(message.channel.id, client);
+  if (channelSlowdown > 0) return true;
+
+  // Message is from bot? Delay for now.
+  if (message.author.bot) {
+    // @todo: other conditions to be checked TK.
+    return true;
+  }
+
+  return false;
+}
+
 async function handleLowPriorityMessage(message) {
   const channelSlowdown = await getChannelSlowdown(message.channel.id, client);
   const baseDelay = channelSlowdown > 0 ?
@@ -1179,8 +1193,7 @@ client.on('messageCreate', async (message) => {
     }
   }
 
-  const channelSlowdown = await getChannelSlowdown(message.channel.id, client);
-  if (message.author.bot || channelSlowdown > 0) {
+  if (await shouldDelayMessageSend(message, client)) {
     handleLowPriorityMessage(message);
   } else {
     await handleRealtimeMessage(message);
