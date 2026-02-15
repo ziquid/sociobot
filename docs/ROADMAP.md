@@ -5,10 +5,10 @@
 ### Technical Debt
 
 - [  ] Convert helper scripts to TypeScript
-   - [x] create-webhooks.ts - Converted with dynamic agent discovery
+   - [  ] create-webhooks.ts - Converted with dynamic agent discovery
 
 - [  ] Add sb- prefix to helper bin entries
-   - [x] sb-create-webhooks - Installed as global command
+   - [  ] sb-create-webhooks - Installed as global command
 
 - [✅] Refactor channel delay checking into separate function (#93)
    - Extracted inline delay logic into shouldDelayMessageSend() function
@@ -19,6 +19,7 @@
 - [✅] botctl monitor midnight restart (#61)
 - [  ] Add SKILLS for helper scripts
    - [  ] list goes here
+- [✅] Add GEMINI_API_KEY to list of env vars to provide each bot
 
 ### Bugs Fixed
 
@@ -37,4 +38,3 @@
 - [✅] Fix botctl mon not monitoring or restarting mailbots (#91)
    - Added check_and_restart_mailbot() function
    - monitor_loop() now checks both SOCIOBOT_BOTS and MAILBOT_BOTS separately
-- [✅] Add GEMINI_API_KEY to list of env vars to provide each bot
