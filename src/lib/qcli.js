@@ -651,7 +651,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
 
     const messageJson = JSON.stringify(messageData, null, 2);
 
-    let query = `While the bot was down, these messages were sent in ${messageData.channel.name}. The message data is in the file ${inputFile}. Please read the file and respond to whichever messages you wish to, or none at all. Write your responses *this time only* as a JSON array to ${outputFile} with format: [{"messageId": "123", "response": "your response"}]. Only respond to messages that warrant a response.`;
+    let query = `While the bot was down, these messages were sent in ${messageData.channel.name}. T he message data is in the file ${inputFile}.  Please read the file and respond to whichever messages you wish to, or none at all.  Write your responses *this time only* as a JSON array to ${outputFile} with format: [{"messageId": "123", "response": "your response"}].  Only respond to messages that warrant a response.`;
 
     // Add note about informationalOnly field
     const hasInformationalOnly = messageData.messages.some(m => m.informationalOnly);
