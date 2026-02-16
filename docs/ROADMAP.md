@@ -14,12 +14,16 @@
    - Extracted inline delay logic into shouldDelayMessageSend() function
    - Enables future expansion of delay conditions without cluttering message handler
 
+- [  ]
+
 ### New Functionality
 
 - [✅] botctl monitor midnight restart (#61)
 - [  ] Add SKILLS for helper scripts
    - [  ] list goes here
-- [✅] Add GEMINI_API_KEY to list of env vars to provide each bot
+- [✅] Add GEMINI_API_KEY and ZDS_AI_FLASH_MODELS to list of env vars to provide to each bot
+- [✅] Send all ZDS_AI_ env vars to speech encoder, not just ZDS_AI_AGENT_ vars
+- [  ]
 
 ### Bugs Fixed
 
@@ -38,3 +42,4 @@
 - [✅] Fix botctl mon not monitoring or restarting mailbots (#91)
    - Added check_and_restart_mailbot() function
    - monitor_loop() now checks both SOCIOBOT_BOTS and MAILBOT_BOTS separately
+- [  ]

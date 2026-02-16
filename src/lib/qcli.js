@@ -126,7 +126,7 @@ export function encodeSpeech(text, agentName) {
     const envLines = zaiEnvOutput.split('\n').slice(1); // Skip first line (command)
 
     for (const line of envLines) {
-      const match = line.match(/^(ZDS_AI_AGENT_[^=]+)=(.*)$/);
+      const match = line.match(/^(ZDS_AI_[^=]+)=(.*)$/);
       if (match) {
         env[match[1]] = match[2].replace(/^'(.*)'$/, '$1'); // Remove surrounding quotes if present
       }
