@@ -68,6 +68,11 @@ const AGENT_NAME = agentName;
 const BOT_MESSAGE_DELAY = config.messageDelay;
 const BOT_DMS_CHANNEL_ID = '1418032549430558782'; // Special channel for bot-to-bot communication
 
+// Message send decision constants
+const MESSAGE_DONT_SEND = 'MESSAGE_DONT_SEND';
+const MESSAGE_SEND_LATER = 'MESSAGE_SEND_LATER';
+const MESSAGE_SEND_NOW = 'MESSAGE_SEND_NOW';
+
 // Bot responds to all messages in channels where it has ViewChannel permission
 
 // Check for run-once mode
@@ -395,23 +400,13 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
           continue;
         }
 
-        // Check if response is empty after stripping think tags
-        if (!responseText || responseText.length === 0) {
-          log(`Agent returned empty response after stripping think tags for message ${response.messageId}, skipping Discord reply`);
-          if (!highestProcessedId || message.id > highestProcessedId) {
-            highestProcessedId = message.id;
-          }
-          saveLastProcessedMessage(AGENT_NAME, channel.id, message.id);
-          continue;
-        }
-
         if (isErrorResponse(responseText)) {
           handleErrorResponse(`batch processing message ${response.messageId}`, circuitBreakerState, MAX_FAILURES, log);
           continue;
         }
 
         try {
-          await sendLongMessage(message, responseText, DEBUG, null, AGENT_NAME);
+          await sendLongMessage(message, responseText, DEBUG);
           log(`Discord delivery SUCCESS for message ${response.messageId}`);
           if (!highestProcessedId || message.id > highestProcessedId) {
             highestProcessedId = message.id;
@@ -620,23 +615,13 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
               }
             }
 
-            // Check if response is empty after stripping think tags
-            if (!responseText || responseText.length === 0) {
-              log(`Agent returned empty response after stripping think tags for bot-dms message ${response.messageId}, skipping Discord reply`);
-              if (!highestProcessedId || message.id > highestProcessedId) {
-                highestProcessedId = message.id;
-              }
-              saveLastProcessedMessage(AGENT_NAME, BOT_DMS_CHANNEL_ID, message.id);
-              continue;
-            }
-
             if (isErrorResponse(responseText)) {
               handleErrorResponse(`bot-dms processing message ${response.messageId}`, circuitBreakerState, MAX_FAILURES, log);
               continue;
             }
 
             try {
-              await sendLongMessage(message, responseText, DEBUG, null, AGENT_NAME);
+              await sendLongMessage(message, responseText, DEBUG);
               log(`Bot-dms Discord delivery SUCCESS for message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
                 highestProcessedId = message.id;
@@ -913,18 +898,32 @@ async function checkGuildChannels(readyClient, lastMessages) {
   }
 }
 
-async function shouldDelayMessageSend(message, client) {
+async function shouldSendMessage(message, client) {
+  // Check if message is empty, contains only NO_RESPONSE, or zero-width characters
+  const trimmed = message.content.trim();
+
+  // Don't send if empty after trimming
+  if (!trimmed) return MESSAGE_DONT_SEND;
+
+  // Don't send if contains NO_RESPONSE
+  if (trimmed.includes('NO_RESPONSE')) return MESSAGE_DONT_SEND;
+
+  // Check for zero-width unicode characters (blank messages from Devon)
+  // Common zero-width chars: U+200B (ZWSP), U+200C (ZWNJ), U+200D (ZWJ), U+FEFF (BOM)
+  const hasOnlyZeroWidth = /^[\u200B\u200C\u200D\uFEFF]+$/.test(trimmed);
+  if (hasOnlyZeroWidth) return MESSAGE_DONT_SEND;
+
   // Active slowdown? Delay.
   const channelSlowdown = await getChannelSlowdown(message.channel.id, client);
-  if (channelSlowdown > 0) return true;
+  if (channelSlowdown > 0) return MESSAGE_SEND_LATER;
 
   // Message is from bot? Delay for now.
   if (message.author.bot) {
     // @todo: other conditions to be checked TK.
-    return true;
+    return MESSAGE_SEND_LATER;
   }
 
-  return false;
+  return MESSAGE_SEND_NOW;
 }
 
 async function handleLowPriorityMessage(message) {
@@ -957,9 +956,7 @@ async function handleRealtimeMessage(message) {
   const hasViewPermission = message.channel.permissionsFor?.(client.user)?.has('ViewChannel');
 
   if (DEBUG) {
-    const channelName = message.channel.name || (message.channel.recipient
-      ? `DM with ${message.channel.recipient.username || message.channel.recipient.tag || message.author.username} (ID: ${message.channel.recipient.id || message.author.id})`
-      : `DM with ${message.author.username} (ID: ${message.author.id})`);
+    const channelName = message.channel.name || `DM with ${message.channel.recipient?.username}`;
     log(`ROUTING: Message ${message.id} from ${message.author.username} in ${channelName}`);
     log(`  -> mention=${isMention}, isDM=${isDM}, hasViewPerm=${hasViewPermission}`);
 
@@ -1048,13 +1045,6 @@ async function handleRealtimeMessage(message) {
           return;
         }
 
-        // Check if response is empty after stripping think tags
-        if (!responseText || responseText.length === 0) {
-          log(`Agent returned empty response after stripping think tags for message ${message.id}, skipping Discord reply`);
-          saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
-          return;
-        }
-
         if (isErrorResponse(responseText)) {
           handleErrorResponse('realtime processing', circuitBreakerState, MAX_FAILURES, log);
         } else {
@@ -1074,7 +1064,7 @@ async function handleRealtimeMessage(message) {
               }
             }
 
-            await sendLongMessage(message, responseText, DEBUG, audioPath, AGENT_NAME);
+            await sendLongMessage(message, responseText, DEBUG, audioPath);
             log(`Real-time Discord delivery SUCCESS for message ${message.id}${audioPath ? ' with audio' : ''}`);
             // Save persistence immediately after successful delivery
             saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
@@ -1106,10 +1096,8 @@ client.once(Events.ClientReady, async (readyClient) => {
     for (const channelId of Object.keys(lastMessages)) {
       try {
         const channel = await readyClient.channels.fetch(channelId);
-        const name = channel.name || (channel.recipient
-          ? `DM with ${channel.recipient.username || channel.recipient.tag || 'Unknown'} (ID: ${channel.recipient.id})`
-          : `Unknown (ID: ${channelId})`);
-        if (DEBUG || name.includes("Unknown")) {
+        const name = channel.name || `DM with ${channel.recipient?.username}` || `Unknown`;
+        if (DEBUG || name === "Unknown") {
           channelNames.push(`${name} (${channelId})`);
         } else {
           channelNames.push(name);
@@ -1170,9 +1158,14 @@ client.once(Events.ClientReady, async (readyClient) => {
   // Process queued messages
   while (messageQueue.length > 0) {
     const queuedMessage = messageQueue.shift();
-    if (queuedMessage.author.bot) {
+    const sendDecision = await shouldSendMessage(queuedMessage, client);
+    if (sendDecision === MESSAGE_DONT_SEND) {
+      // Don't send this message at all
+      if (DEBUG) log(`Queued message ${queuedMessage.id} suppressed (empty/NO_RESPONSE/zero-width)`);
+      continue;
+    } else if (sendDecision === MESSAGE_SEND_LATER) {
       handleLowPriorityMessage(queuedMessage);
-    } else {
+    } else { // MESSAGE_SEND_NOW
       await handleRealtimeMessage(queuedMessage);
     }
   }
@@ -1193,9 +1186,14 @@ client.on('messageCreate', async (message) => {
     }
   }
 
-  if (await shouldDelayMessageSend(message, client)) {
+  const sendDecision = await shouldSendMessage(message, client);
+  if (sendDecision === MESSAGE_DONT_SEND) {
+    // Don't send this message at all
+    if (DEBUG) log(`Message ${message.id} suppressed (empty/NO_RESPONSE/zero-width)`);
+    return;
+  } else if (sendDecision === MESSAGE_SEND_LATER) {
     handleLowPriorityMessage(message);
-  } else {
+  } else { // MESSAGE_SEND_NOW
     await handleRealtimeMessage(message);
   }
 });
@@ -1226,9 +1224,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const messagePreview = message.content.substring(0, 500);
     const truncated = message.content.length > 500 ? '...' : '';
 
-    const channelName = message.channel.name || (message.channel.recipient
-      ? `DM with ${message.channel.recipient.username || message.channel.recipient.tag || message.author.username} (ID: ${message.channel.recipient.id || message.author.id})`
-      : `DM with ${message.author.username} (ID: ${message.author.id})`);
+    const channelName = message.channel.name || `DM with ${message.channel.recipient?.username}`;
     const messageAuthor = message.author.username;
 
     log(`Reaction notification: ${user.username} reacted with ${emojiIdentifier} to ${messageAuthor}'s message in ${channelName}`);

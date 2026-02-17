@@ -14,6 +14,11 @@
    - Extracted inline delay logic into shouldDelayMessageSend() function
    - Enables future expansion of delay conditions without cluttering message handler
 
+- [✅] Refactor shouldDelayMessageSend() to shouldSendMessage() with three-state return (#96)
+   - [✅] Add MESSAGE_DONT_SEND, MESSAGE_SEND_LATER, MESSAGE_SEND_NOW constants
+   - [✅] Implement message filtering for empty, NO_RESPONSE, and zero-width unicode messages
+   - [✅] Update message handlers to use three-state logic
+
 - [  ]
 
 ### New Functionality
