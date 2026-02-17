@@ -32,7 +32,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`Connected as ${client.user.tag}`);
   
   const guild = client.guilds.cache.first();

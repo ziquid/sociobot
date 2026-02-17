@@ -71,7 +71,7 @@ async function resolveChannel(client: Client, channelIdOrName: string): Promise<
   throw new Error(`Channel not found: ${channelIdOrName}`);
 }
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`Connected as ${client.user?.tag}`);
 
   try {
