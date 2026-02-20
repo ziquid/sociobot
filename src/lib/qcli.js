@@ -192,7 +192,7 @@ function logInteraction(agentName, data) {
   }
 }
 
-async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null) {
+async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null) {
   activeProcesses++;
 
   const isDM = channel.type === ChannelType.DM;
@@ -249,6 +249,13 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
     env.ZDS_AI_AGENT_MESSAGE_REPLY_TO_AUTHOR = replyContext.author.username;
     env.ZDS_AI_AGENT_MESSAGE_REPLY_TO_AUTHOR_ID = replyContext.author.id;
     env.ZDS_AI_AGENT_MESSAGE_REPLY_TO_TIMESTAMP = replyContext.timestamp;
+  }
+
+  // Addressing context (computed in processRealtimeMessage using existing logic)
+  // Keep this minimal: one field that describes why this agent is eligible to respond.
+  // Values: 'mentioned', 'author', 'participated', or 'none' (or a '+'-joined combination)
+  if (typeof addressing === 'string' && addressing.length) {
+    env.ZDS_AI_AGENT_MESSAGE_ADDRESSING = addressing;
   }
 
   // Set response format constraints based on mode
@@ -530,11 +537,30 @@ ${convertedContent}`;
     query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned, isAuthor);
 
     if (debug) {
-      console.log('=== REALTIME QUERY ===');
+      console.log('=== REALTIME QUERY ===')
       console.log(query);
     }
 
-    const response = await executeQCLI(query, agentName, message.author.username, channel, message.createdAt, currentACL, false, debug, message.client.user.username, replyContext);
+    // Minimal addressing signal for the agent (derived from existing booleans)
+    const addressing = [
+      wasMentioned ? 'mentioned' : null,
+      isAuthor ? 'author' : null,
+      hasParticipated ? 'participated' : null
+    ].filter(Boolean).join('+') || 'none';
+
+    const response = await executeQCLI(
+      query,
+      agentName,
+      message.author.username,
+      channel,
+      message.createdAt,
+      currentACL,
+      false,
+      debug,
+      message.client.user.username,
+      replyContext,
+      addressing
+    );
 
     // Log the Q CLI response
     logInteraction(agentName, {
@@ -679,7 +705,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
     // For batch processing, ACL is included per-message in the JSON file
     // Use 'batch' as a marker value for the environment variable
     const agentUsername = messages[0]?.client?.user?.username || null;
-    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date(), 'batch', true, debug, agentUsername);
+    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date(), 'batch', true, debug, agentUsername, null, 'none');
 
     log(`Checking for output file: ${outputFile}`);
     log(`Output file exists: ${existsSync(outputFile)}`);
