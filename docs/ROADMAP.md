@@ -47,4 +47,7 @@
 - [✅] Fix botctl mon not monitoring or restarting mailbots (#91)
    - Added check_and_restart_mailbot() function
    - monitor_loop() now checks both SOCIOBOT_BOTS and MAILBOT_BOTS separately
+- [✅] Update discord.js ready event to clientReady (#63)
+   - Replaced deprecated 'ready' event with 'clientReady' in helper scripts
+   - Eliminates deprecation warning in stderr
 - [  ]
