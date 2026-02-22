@@ -28,6 +28,10 @@
    - [  ] list goes here
 - [✅] Add GEMINI_API_KEY and ZDS_AI_FLASH_MODELS to list of env vars to provide to each bot
 - [✅] Send all ZDS_AI_ env vars to speech encoder, not just ZDS_AI_AGENT_ vars
+- [✅] Add channel name support to download-channel-history (#101)
+   - Added resolveChannelId() function to accept both numeric IDs and channel names
+   - Searches all guilds with proper permission checks
+   - Handles ambiguous names and shows available channels
 - [  ]
 
 ### Bugs Fixed

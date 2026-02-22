@@ -45,7 +45,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 Download Channel History - Export Discord channel messages to flat files
 
 USAGE:
-  download-channel-history <channel-id> [options]
+  download-channel-history <channel-id-or-name> [options]
 
 OPTIONS:
   --format <format>    Output format: json, text, markdown (default: json)
@@ -55,8 +55,8 @@ OPTIONS:
 
 EXAMPLES:
   download-channel-history 123456789 --format json
-  download-channel-history 123456789 --format markdown --limit 500
-  download-channel-history 123456789 --output channel-export.txt
+  download-channel-history planning --format markdown --limit 500
+  download-channel-history general --output channel-export.txt
 
 FORMATS:
   json      - Structured JSON with full message data
@@ -77,11 +77,11 @@ if (!agentHandle) {
 }
 
 // Parse arguments
-const channelId = process.argv[2];
+const channelInput = process.argv[2];
 
-if (!channelId) {
-  console.error('Error: Channel ID is required');
-  console.error('Usage: download-channel-history <channel-id>');
+if (!channelInput) {
+  console.error('Error: Channel ID or name is required');
+  console.error('Usage: download-channel-history <channel-id-or-name>');
   console.error('Use --help for more information');
   process.exit(1);
 }
@@ -179,9 +179,83 @@ function generateFilename(channelName: string, format: string): string {
   return `${safeName}_${timestamp}.${extension}`;
 }
 
+// Resolve channel name to ID
+async function resolveChannelId(input: string): Promise<string> {
+  // If input is numeric, assume it's already a channel ID
+  if (/^\d+$/.test(input)) {
+    return input;
+  }
+
+  // Input is a channel name - search for it
+  console.log(`Resolving channel name: ${input}...`);
+
+  const matches: Array<{ id: string; name: string; guildName: string | null }> = [];
+
+  // Search all guilds for matching channels
+  const guilds = client.guilds.cache;
+  for (const [guildId, guild] of guilds) {
+    const channels = guild.channels.cache.filter(channel =>
+      channel.type === ChannelType.GuildText &&
+      channel.permissionsFor(client.user!)?.has('ViewChannel')
+    );
+
+    for (const [channelId, channel] of channels) {
+      if ('name' in channel && channel.name === input) {
+        matches.push({
+          id: channelId,
+          name: channel.name,
+          guildName: guild.name
+        });
+      }
+    }
+  }
+
+  // Handle results
+  if (matches.length === 0) {
+    console.error(`Error: No channel found with name '${input}'`);
+    console.error('\nAvailable channels:');
+
+    // Show available channels
+    for (const [guildId, guild] of guilds) {
+      const channels = guild.channels.cache.filter(channel =>
+        channel.type === ChannelType.GuildText &&
+        channel.permissionsFor(client.user!)?.has('ViewChannel')
+      );
+
+      if (channels.size > 0) {
+        console.error(`\n  ${guild.name}:`);
+        for (const [channelId, channel] of channels) {
+          if ('name' in channel) {
+            console.error(`    #${channel.name} (${channelId})`);
+          }
+        }
+      }
+    }
+
+    process.exit(1);
+  }
+
+  if (matches.length > 1) {
+    console.error(`Error: Multiple channels found with name '${input}':`);
+    for (const match of matches) {
+      console.error(`  - ${match.guildName}: #${match.name} (${match.id})`);
+    }
+    console.error('\nPlease use the channel ID instead to specify which one.');
+    process.exit(1);
+  }
+
+  // Exactly one match - success
+  const match = matches[0];
+  console.log(`Found channel: #${match.name} in ${match.guildName} (${match.id})`);
+  return match.id;
+}
+
 // Download channel history
 async function downloadChannelHistory(): Promise<void> {
   try {
+    // Resolve channel name to ID if necessary
+    const channelId = await resolveChannelId(channelInput);
+
     console.log(`Fetching channel ${channelId}...`);
     const channel = await client.channels.fetch(channelId);
 
