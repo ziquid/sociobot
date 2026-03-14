@@ -913,11 +913,11 @@ async function shouldSendMessage(message, client) {
   const hasOnlyZeroWidth = /^[\u200B\u200C\u200D\uFEFF]+$/.test(trimmed);
   if (hasOnlyZeroWidth) return MESSAGE_DONT_SEND;
 
-  // Active slowdown? Delay.
+  // Active slowdown?  Delay.
   const channelSlowdown = await getChannelSlowdown(message.channel.id, client);
   if (channelSlowdown > 0) return MESSAGE_SEND_LATER;
 
-  // Message is from bot? Delay for now.
+  // Message is from bot?  Delay for now.
   if (message.author.bot) {
     // @todo: other conditions to be checked TK.
     return MESSAGE_SEND_LATER;
@@ -1081,7 +1081,7 @@ async function handleRealtimeMessage(message) {
 
 // Bot ready event
 client.once(Events.ClientReady, async (readyClient) => {
-  log(`${AGENT_NAME} Discord Bot is ready! Logged in as ${readyClient.user.tag}`);
+  log(`${AGENT_NAME} Discord Bot is ready!  Logged in as ${readyClient.user.tag}`);
 
   if (DEBUG) {
     log(`Bot User ID from Discord: ${readyClient.user.id}`);
@@ -1241,7 +1241,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 Reacted with ${emojiIdentifier} to message from @${messageAuthor} (ID: ${message.author.id}, Message ID: ${message.id}):
 "${messagePreview}${truncated}"
 
-This message is for your information only. Do not reply -- replies to this message will not be processed.`;
+This message is for your information only.  Do not reply -- replies to this message will not be processed.`;
 
     // Process as informational message (no response expected)
     await processRealtimeMessage(
