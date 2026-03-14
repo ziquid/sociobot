@@ -32,6 +32,7 @@
    - Added resolveChannelId() function to accept both numeric IDs and channel names
    - Searches all guilds with proper permission checks
    - Handles ambiguous names and shows available channels
+- [✅] Turned off reaction notifications pending feature/86
 - [  ]
 
 ### Bugs Fixed
