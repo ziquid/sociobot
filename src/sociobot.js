@@ -1201,6 +1201,12 @@ client.on('messageCreate', async (message) => {
 // Handle reaction events
 client.on('messageReactionAdd', async (reaction, user) => {
   try {
+    // Skip until Aiden fixes feature/86-discord-response-message-type
+    if ('Aiden_status_of_feature_86' !== 'fixed') {
+      if (DEBUG) log(`Skipping reaction notification until Aiden fixes feature/86`);
+      return;
+    }
+
     // Skip if the reactor is this bot
     if (user.id === client.user.id) {
       if (DEBUG) log(`Skipping self-reaction notification`);
