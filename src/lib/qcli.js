@@ -259,10 +259,7 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
   }
 
   // Set response format constraints based on mode
-  if (!canReply) {
-    env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'NO_RESPONSE';
-    env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, json, yaml, REACTION:';
-  } else if (isBatch) {
+  if (isBatch) {
     env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'json, NO_RESPONSE, REACTION:';
     env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, yaml';
   } else {
@@ -274,8 +271,8 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
     env.ZDS_AI_AGENT_MESSAGE_MAX_ACL = maxACL.toString();
 
     // Adjust accepted/forbidden responses based on ACL state
-    if (currentACL > maxACL) {
-      // Beyond ACL limit: only NO_RESPONSE allowed
+    if ((currentACL > maxACL) || !canReply) {
+      // only NO_RESPONSE allowed
       env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'NO_RESPONSE';
       env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, json, yaml, REACTION:';
     } else if (currentACL === maxACL) {
