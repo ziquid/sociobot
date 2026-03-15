@@ -4,11 +4,19 @@
 
 ### Technical Debt
 
-- [  ] Convert helper scripts to TypeScript
-   - [  ] create-webhooks.ts - Converted with dynamic agent discovery
+- [🔘] Convert helper scripts to TypeScript
+   - [✅] create-webhooks.ts - Converted with dynamic agent discovery
+   - [✅] download-channel-history.ts
+   - [✅] list-channels.ts
+   - [✅] send-message.ts
+   - [  ]
 
-- [  ] Add sb- prefix to helper bin entries
-   - [  ] sb-create-webhooks - Installed as global command
+- [🔘] Add sb- prefix to helper bin entries
+   - [✅] sb-create-webhooks
+   - [✅] sb-download-channel-history
+   - [✅] sb-list-channels
+   - [✅] sb-send-message
+   - [  ]
 
 - [✅] Refactor channel delay checking into separate function (#93)
    - Extracted inline delay logic into shouldDelayMessageSend() function
@@ -38,15 +46,18 @@
 ### New Functionality
 
 - [✅] botctl monitor midnight restart (#61)
-- [  ] Add SKILLZ man pages for binaries
-   - [  ] Agent binaries
-      - [  ] sb-download-channel-history
-      - [  ] sb-list-channels
-      - [  ] sb-send-message
-   - [  ] Admin binaries
+- [🔘] Add SKILLZ man.md pages for binaries
+   - [🔘] Agent binaries
+      - [🔘] sb-download-channel-history
+      - [🔘] sb-list-channels
+      - [🔘] sb-send-message
+      - [  ]
+   - [🔘] Admin binaries
       - [  ] botctl
       - [  ] sociobot
-      - [  ] sb-create-webhooks
+      - [🔘] sb-create-webhooks
+      - [  ]
+- [  ] Install skillz man.md pages to $ZDS_AI_ROOT/skillz/sociobot/man as part of `bun install` (pages become part of package)
 - [✅] Add GEMINI_API_KEY and ZDS_AI_FLASH_MODELS to list of env vars to provide to each bot
 - [✅] Send all ZDS_AI_ env vars to speech encoder and zai-cli, not just ZDS_AI_AGENT_ vars
 - [✅] Add channel name support to download-channel-history (#101)
