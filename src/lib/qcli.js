@@ -192,7 +192,7 @@ function logInteraction(agentName, data) {
   }
 }
 
-async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null) {
+async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null, canReply = true) {
   activeProcesses++;
 
   const isDM = channel.type === ChannelType.DM;
@@ -259,7 +259,10 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
   }
 
   // Set response format constraints based on mode
-  if (isBatch) {
+  if (!canReply) {
+    env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'NO_RESPONSE';
+    env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, json, yaml, REACTION:';
+  } else if (isBatch) {
     env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'json, NO_RESPONSE, REACTION:';
     env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, yaml';
   } else {
@@ -313,7 +316,7 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
 
       // If we have stdout but no stderr, send partial response with a note
       if (output.trim() && !errorOutput.trim()) {
-        const partialResponse = output.trim() + '\n\n_[Note: Response may be incomplete - sociobot timeout occurred]_';
+        const partialResponse = output.trim() + '\n\n_[Note: Response may be incomplete -- sociobot timeout occurred]_';
         log(`Sending partial response despite timeout (${output.length} chars)`);
         resolve(partialResponse);
       } else {
@@ -559,7 +562,8 @@ ${convertedContent}`;
       debug,
       message.client.user.username,
       replyContext,
-      addressing
+      addressing,
+      !noDiscord // take into account ACL?
     );
 
     // Log the ZAI-CLI response
@@ -713,7 +717,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
     // For batch processing, ACL is included per-message in the JSON file
     // Use 'batch' as a marker value for the environment variable
     const agentUsername = messages[0]?.client?.user?.username || null;
-    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date(), 'batch', true, debug, agentUsername, null, 'none');
+    const stdoutResponse = await executeQCLI(query, agentName, 'batch', channel, new Date(), 'batch', true, debug, agentUsername, null, 'none', true);
 
     log(`Checking for output file: ${outputFile}`);
     log(`Output file exists: ${existsSync(outputFile)}`);
