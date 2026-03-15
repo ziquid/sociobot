@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const FOOTER_SIGNATURE = "Sent by a ZDS AI Agent • zds-agents.com";
-const ACL_COURTESY_MESSAGE = "\n\nFor your information only.  Replies to this message will not be processed.";
+const ACL_NO_RESPONSE_MESSAGE = "\n\nFor your information only.  Replies to this message will not be processed.";
 const ACL_REACTIONS_ONLY_MESSAGE = "\n\nNote: You are at the ACL limit.  You may only respond with a REACTION (e.g., REACTION:eyes) to acknowledge this message.  Text responses will be blocked.";
 
 /**
@@ -177,9 +177,19 @@ export function wasMentionedInMessage(message, botUserId, agentName) {
  * @param {boolean} hasParticipated - Whether agent already participated in thread
  * @param {boolean} wasMentioned - Whether agent was directly mentioned in message
  * @param {boolean} isAuthor - Whether agent authored the message or its immediate parent
+ * @param {boolean} noDiscord - Whether discord replies are forbidden
  * @returns {string} - Query with appropriate response guidance
  */
-export function addResponseGuidance(query, currentACL, maxACL, debug = false, hasParticipated = false, wasMentioned = false, isAuthor = false) {
+export function addResponseGuidance(query, currentACL, maxACL, debug = false, hasParticipated = false, wasMentioned = false, isAuthor = false, noDiscord = false) {
+
+  // No Discord turned on?  Add No Response message.
+  if (noDiscord) {
+    if (debug) {
+      console.log(`noDiscord === true, adding no response message`);
+    }
+    return query + ACL_NO_RESPONSE_MESSAGE;
+  }
+
   // Calculate effective ACL limit based on conditions
   // Priority: mentioned OR author (3x) > participated (2x) > normal (1x)
   let effectiveMaxACL = maxACL;
@@ -200,9 +210,9 @@ export function addResponseGuidance(query, currentACL, maxACL, debug = false, ha
     return query + ACL_REACTIONS_ONLY_MESSAGE;
   } else if (currentACL > effectiveMaxACL) {
     if (debug) {
-      console.log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL}), adding courtesy message`);
+      console.log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL}), adding no response message`);
     }
-    return query + ACL_COURTESY_MESSAGE;
+    return query + ACL_NO_RESPONSE_MESSAGE;
   } else if ((wasMentioned || isAuthor || hasParticipated) && currentACL >= maxACL && currentACL < effectiveMaxACL) {
     // Agent is beyond normal limit but within their increased limit
     let message = '';

@@ -50,7 +50,7 @@ import { loadLastProcessedMessages, saveLastProcessedMessage } from "./lib/persi
 import { processBatchedMessages, processRealtimeMessage, log, encodeSpeech } from "./lib/qcli.js";
 import { setupErrorHandlers } from "./lib/error-handlers.js";
 import { sendLongMessage, stripThinkTags } from "./lib/message-utils.js";
-import { getACL, getMaxACL, addResponseGuidance } from "./lib/metadata.js";
+// import { getACL, getMaxACL, addResponseGuidance } from "./lib/metadata.js";
 import {
   isOwnBotMessage,
   isAfterCutoff,

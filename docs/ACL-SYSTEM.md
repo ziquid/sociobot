@@ -153,7 +153,7 @@ The ACL system is controlled by constants in `lib/metadata.js`:
 export const MAX_ACL = 4;
 
 const FOOTER_SIGNATURE = "Sent by a ZDS AI Agent • zds-agents.com";
-const ACL_COURTESY_MESSAGE = "\n\nFor your information only. Replies to this message will not be processed.";
+const ACL_NO_RESPONSE_MESSAGE = "\n\nFor your information only. Replies to this message will not be processed.";
 ```
 
 ## Troubleshooting

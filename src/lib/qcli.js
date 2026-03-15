@@ -289,7 +289,7 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
   if (debug) {
     log(`Spawning: zai ${messageSource} ${agentName}`);
     const debugEnv = {};
-    const agentEnvVars = Object.keys(env).filter(k => k.startsWith('ZDS_AI_AGENT_'));
+    const agentEnvVars = Object.keys(env).filter(k => k.startsWith('ZDS_AI_'));
     for (const key of agentEnvVars) {
       debugEnv[key] = env[key];
     }
@@ -533,8 +533,8 @@ ${convertedContent}`;
       attachments_count: message.attachments.size
     });
 
-    // Add response guidance based on ACL state, mentions, authorship, and thread participation
-    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned, isAuthor);
+    // Add response guidance based on ACL state, mentions, authorship, thread participation, noDiscord
+    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned, isAuthor, noDiscord);
 
     if (debug) {
       console.log('=== REALTIME QUERY ===')
@@ -562,9 +562,9 @@ ${convertedContent}`;
       addressing
     );
 
-    // Log the Q CLI response
+    // Log the ZAI-CLI response
     logInteraction(agentName, {
-      type: 'qcli_response',
+      type: 'zai-cli_response',
       message_id: message.id,
       response: response ? response.substring(0, 300) : null,
       success: !!response
@@ -573,6 +573,14 @@ ${convertedContent}`;
     if (debug && response) {
       console.log('=== REALTIME RESPONSE ===');
       console.log(response);
+    }
+
+    // If noDiscord, block response
+    if (noDiscord) {
+      if (debug) {
+        log(`noDiscord === true, blocking response`);
+      }
+      return null;
     }
 
     // If at ACL limit, allow only REACTION responses
@@ -646,7 +654,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
           content: convertMentions(msg.content, msg.client),
           timestamp: msg.createdAt.toISOString(),
           acl: msgACL,
-          informationalOnly: wouldExceedACL && !isAtACLLimit,
+          informationalOnly: noDiscord || (wouldExceedACL && !isAtACLLimit),
           reactionsOnly: isAtACLLimit
         };
 
@@ -682,7 +690,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
     // Add note about informationalOnly field
     const hasInformationalOnly = messageData.messages.some(m => m.informationalOnly);
     if (hasInformationalOnly) {
-      query += '\n\nNote: Messages with "informationalOnly": true are for your information only -- do not respond to them as your response would not be delivered due to ACL limits.';
+      query += '\n\nNote: Messages with "informationalOnly": true are for your information only -- do not respond to them as your response will not be delivered.';
     }
 
     // Add note about reactionsOnly field
@@ -751,7 +759,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
           .filter(response => {
             if (informationalOnlyIds.has(response.messageId)) {
               if (debug) {
-                log(`Dropping response to informationalOnly message ${response.messageId} (ACL would exceed limit)`);
+                log(`Dropping response to informationalOnly message ${response.messageId}`);
               }
               return false;
             }

@@ -19,21 +19,42 @@
    - [✅] Implement message filtering for empty, NO_RESPONSE, and zero-width unicode messages
    - [✅] Update message handlers to use three-state logic
 
-- [  ]
+- [  ] Determine which helpers should become agent bins or admin bins or deleted
+   - [  ] assign-role.js (admin/agent/delete)
+   - [  ] check-dms.sh (admin/agent/delete)
+   - [  ] check-webhooks.js (admin/agent/delete)
+   - [  ] create-channel.js (admin/agent/delete)
+   - [  ] create-role.js (admin/agent/delete)
+   - [  ] discord-monitor.sh (admin/agent/delete)
+   - [  ] discord-peek.js (admin/agent/delete)
+   - [  ] fix-webhooks.js (admin/agent/delete)
+   - [  ] get-bot-name.js (admin/agent/delete)
+   - [  ] get-webhook-name.js (admin/agent/delete)
+   - [  ] list-roles.js (admin/agent/delete)
+   - [  ] monitor-discord.sh (admin/agent/delete)
+   - [  ] show-channel.js (admin/agent/delete)
+   - [  ] show-message.js (admin/agent/delete)
 
 ### New Functionality
 
 - [✅] botctl monitor midnight restart (#61)
-- [  ] Add SKILLS for helper scripts
-   - [  ] list goes here
+- [  ] Add SKILLZ man pages for binaries
+   - [  ] Agent binaries
+      - [  ] sb-download-channel-history
+      - [  ] sb-list-channels
+      - [  ] sb-send-message
+   - [  ] Admin binaries
+      - [  ] botctl
+      - [  ] sociobot
+      - [  ] sb-create-webhooks
 - [✅] Add GEMINI_API_KEY and ZDS_AI_FLASH_MODELS to list of env vars to provide to each bot
-- [✅] Send all ZDS_AI_ env vars to speech encoder, not just ZDS_AI_AGENT_ vars
+- [✅] Send all ZDS_AI_ env vars to speech encoder and zai-cli, not just ZDS_AI_AGENT_ vars
 - [✅] Add channel name support to download-channel-history (#101)
    - Added resolveChannelId() function to accept both numeric IDs and channel names
    - Searches all guilds with proper permission checks
    - Handles ambiguous names and shows available channels
-- [✅] Turned off reaction notifications pending feature/86
-- [  ]
+- [✅] Turned off Discord emoji reaction notifications pending feature/86
+- [🔘] Properly mark discord emoji reaction notifications (feature/86)
 
 ### Bugs Fixed
 
@@ -55,4 +76,4 @@
 - [✅] Update discord.js ready event to clientReady (#63)
    - Replaced deprecated 'ready' event with 'clientReady' in helper scripts
    - Eliminates deprecation warning in stderr
-- [  ]
+- [✅] `noDiscord` flag was not being properly recognized when processing messages.
