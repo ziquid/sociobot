@@ -32,12 +32,12 @@ function loadServerConfig(guildId) {
  */
 export function getMaxACL(channel, debug = false) {
   if (!channel.guild) {
-    return 1;
+    return 2;
   }
 
   const serverConfig = loadServerConfig(channel.guild.id);
   if (!serverConfig?.zdsAiAgentsRoleId) {
-    return 1;
+    return 2;
   }
 
   const zdsBotCount = channel.guild.members.cache.filter(member => {

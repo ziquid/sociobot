@@ -349,9 +349,9 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
         let responseText = stripThinkTags(response.response).trim();
         const aclLimited = response.aclLimited || false;
 
-        // Check for NO_RESPONSE directive
-        if (responseText === 'NO_RESPONSE') {
-          log(`Agent returned NO_RESPONSE - skipping Discord reply for message ${response.messageId}`);
+        // Check for NO_RESPONSE or '.' directives
+        if (responseText === 'NO_RESPONSE' || responseText === '.') {
+          log(`Agent returned ${responseText} -- skipping Discord reply for message ${response.messageId}`);
           if (!highestProcessedId || message.id > highestProcessedId) {
             highestProcessedId = message.id;
           }
@@ -367,7 +367,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
           emoji = emoji.replace(/^:|:$/g, '');
           // Map common emoji names to Unicode
           emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
-          log(`Agent returned REACTION directive - reacting to message ${response.messageId} with ${emoji}`);
+          log(`Agent returned REACTION directive -- reacting to message ${response.messageId} with ${emoji}`);
           try {
             await message.react(emoji);
             log(`Reaction SUCCESS for message ${response.messageId}: ${emoji}`);
@@ -574,9 +574,9 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
           if (message && response.response) {
             let responseText = stripThinkTags(response.response).trim();
 
-            // Check for NO_RESPONSE directive
-            if (responseText === 'NO_RESPONSE') {
-              log(`Agent returned NO_RESPONSE - skipping Discord reply for bot-dms message ${response.messageId}`);
+            // Check for NO_RESPONSE or . directive
+            if (responseText === 'NO_RESPONSE' || responseText === '.') {
+              log(`Agent returned ${responseText} -- skipping Discord reply for bot-dms message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
                 highestProcessedId = message.id;
               }
@@ -592,7 +592,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
               emoji = emoji.replace(/^:|:$/g, '');
               // Map common emoji names to Unicode
               emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
-              log(`Agent returned REACTION directive - reacting to bot-dms message ${response.messageId} with ${emoji}`);
+              log(`Agent returned REACTION directive -- reacting to bot-dms message ${response.messageId} with ${emoji}`);
               try {
                 await message.react(emoji);
                 log(`Reaction SUCCESS for bot-dms message ${response.messageId}: ${emoji}`);
@@ -905,8 +905,9 @@ async function shouldSendMessage(message, client) {
   // Don't send if empty after trimming
   if (!trimmed) return MESSAGE_DONT_SEND;
 
-  // Don't send if contains NO_RESPONSE
+  // Don't send if contains NO_RESPONSE or '.'
   if (trimmed.includes('NO_RESPONSE')) return MESSAGE_DONT_SEND;
+  if (trimmed === '.') return MESSAGE_DONT_SEND;
 
   // Check for zero-width unicode characters (blank messages from Devon)
   // Common zero-width chars: U+200B (ZWSP), U+200C (ZWNJ), U+200D (ZWJ), U+FEFF (BOM)
@@ -1003,9 +1004,9 @@ async function handleRealtimeMessage(message) {
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
         const aclLimited = typeof result === 'object' ? result.aclLimited : false;
 
-        // Check for NO_RESPONSE directive
-        if (responseText === 'NO_RESPONSE') {
-          log(`Agent returned NO_RESPONSE, skipping Discord reply for message ${message.id}`);
+        // Check for NO_RESPONSE or '.' directives
+        if (responseText === 'NO_RESPONSE' || responseText === '.') {
+          log(`Agent returned ${responseText}, skipping Discord reply for message ${message.id}`);
           saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
           return;
         }
@@ -1161,7 +1162,7 @@ client.once(Events.ClientReady, async (readyClient) => {
     const sendDecision = await shouldSendMessage(queuedMessage, client);
     if (sendDecision === MESSAGE_DONT_SEND) {
       // Don't send this message at all
-      if (DEBUG) log(`Queued message ${queuedMessage.id} suppressed (empty/NO_RESPONSE/zero-width)`);
+      if (DEBUG) log(`Queued message ${queuedMessage.id} suppressed (empty/NO_RESPONSE/./zero-width)`);
       continue;
     } else if (sendDecision === MESSAGE_SEND_LATER) {
       handleLowPriorityMessage(queuedMessage);
@@ -1189,7 +1190,7 @@ client.on('messageCreate', async (message) => {
   const sendDecision = await shouldSendMessage(message, client);
   if (sendDecision === MESSAGE_DONT_SEND) {
     // Don't send this message at all
-    if (DEBUG) log(`Message ${message.id} suppressed (empty/NO_RESPONSE/zero-width)`);
+    if (DEBUG) log(`Message ${message.id} suppressed (empty/NO_RESPONSE/./zero-width)`);
     return;
   } else if (sendDecision === MESSAGE_SEND_LATER) {
     handleLowPriorityMessage(message);

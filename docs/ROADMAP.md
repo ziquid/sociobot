@@ -66,6 +66,7 @@
    - Handles ambiguous names and shows available channels
 - [✅] Turned off Discord emoji reaction notifications pending feature/86
 - [🔘] Properly mark discord emoji reaction notifications (feature/86)
+- [✅] bumped missing channel ACL minimum to 2, added '.' as MESSAGE_DONT_SEND
 
 ### Bugs Fixed
 
