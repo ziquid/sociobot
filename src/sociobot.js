@@ -528,7 +528,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
     if (DEBUG) {
       log('Bot-dms filtering debug:');
       messageArray.forEach(msg => {
-        const isRelevant = isBotDMsRelevant(readyClient.user.id)(msg);
+        const isRelevant = isBotDMsRelevant(readyClient.user.id, AGENT_NAME)(msg);
         const isOwnBot = msg.author.id === readyClient.user.id;
         let reason = '';
         if (isOwnBot) reason = 'own bot message';
@@ -541,7 +541,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
       });
     }
 
-    for (const message of messageArray.filter(isBotDMsRelevant(readyClient.user.id))) {
+    for (const message of messageArray.filter(isBotDMsRelevant(readyClient.user.id, AGENT_NAME))) {
       // Check if it's a reply to our message
       if (message.reference?.messageId) {
         try {
@@ -710,7 +710,7 @@ async function showBacklog(readyClient, lastMessages) {
         const relevantMessages = [];
         const messageArray = Array.from(messages.values());
 
-        for (const message of messageArray.filter(isBotDMsRelevant(readyClient.user.id))) {
+        for (const message of messageArray.filter(isBotDMsRelevant(readyClient.user.id, AGENT_NAME))) {
           if (DEBUG) {
             const isBot = message.author.bot;
             const isOwnBot = message.author.id === readyClient.user.id;

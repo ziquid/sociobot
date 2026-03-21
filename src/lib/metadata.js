@@ -149,6 +149,11 @@ export async function isMessageAuthor(message, botUserId) {
  * @returns {boolean} - True if bot was mentioned (via @tag or by name)
  */
 export function wasMentionedInMessage(message, botUserId, agentName) {
+  if (!agentName) {
+    console.error('wasMentionedInMessage: agentName is required');
+    process.exit(1);
+  }
+
   // Check for @mention (direct user mention)
   if (message.mentions?.users?.has(botUserId)) {
     return true;
@@ -158,9 +163,9 @@ export function wasMentionedInMessage(message, botUserId, agentName) {
   const content = message.content.toLowerCase();
   const agentNameLower = agentName.toLowerCase();
 
-  // Check for agent name as a whole word (not part of another word)
+  // Check for agent name or group words as a whole word (not part of another word)
   // Use word boundary regex to avoid matching "maiden" when looking for "aiden"
-  const namePattern = new RegExp(`\\b${agentNameLower}\\b`, 'i');
+  const namePattern = new RegExp(`\\b(${agentNameLower}|all|everyone)\\b`, 'i');
   if (namePattern.test(content)) {
     return true;
   }
@@ -217,11 +222,11 @@ export function addResponseGuidance(query, currentACL, maxACL, debug = false, ha
     // Agent is beyond normal limit but within their increased limit
     let message = '';
     if (wasMentioned) {
-      message = `\n\nNote: Since you were explicitly mentioned in this message, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}). You are currently at ACL ${currentACL + 1}.`;
+      message = `\n\nNote: Since you were explicitly mentioned in this message, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}).  You are currently at ACL ${currentACL + 1}.`;
     } else if (isAuthor) {
-      message = `\n\nNote: Since you created the message or its parent, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}). You are currently at ACL ${currentACL + 1}.`;
+      message = `\n\nNote: Since you created the message or its parent, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}).  You are currently at ACL ${currentACL + 1}.`;
     } else if (hasParticipated) {
-      message = `\n\nNote: Since you already participated in this message thread, your ACL limit is ${effectiveMaxACL} (doubled from ${maxACL}). You are currently at ACL ${currentACL + 1}.`;
+      message = `\n\nNote: Since you already participated in this message thread, your ACL limit is ${effectiveMaxACL} (doubled from ${maxACL}).  You are currently at ACL ${currentACL + 1}.`;
     }
     if (debug) {
       console.log(`Agent ${reason} in thread, has ${reason === 'mentioned' || reason === 'author' ? 'tripled' : 'doubled'} ACL limit: ${effectiveMaxACL}`);

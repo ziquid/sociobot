@@ -3,6 +3,8 @@
  * Handles message filtering, error detection, channel utilities, and debug helpers
  */
 
+import { wasMentionedInMessage } from './metadata.js';
+
 /**
  * Create a filter function to check if a message is from the bot's own account
  * @param {string} botUserId - The bot's user ID
@@ -26,15 +28,23 @@ export const isAfterCutoff = (cutoffId) => (msg) => !cutoffId || msg.id > cutoff
  * Create a filter function to check if a bot-dms message is relevant to this bot
  * Relevant messages are: human messages, mentions of the bot, or replies to the bot
  * @param {string} botUserId - The bot's user ID
+ * @param {string} agentName - Agent name (required)
  * @returns {Function} Filter function that returns true if message is relevant
  * @example
- * const relevantMessages = messages.filter(isBotDMsRelevant(client.user.id));
+ * const relevantMessages = messages.filter(isBotDMsRelevant(client.user.id, 'aiden'));
  */
-export const isBotDMsRelevant = (botUserId) => (msg) => {
-  if (msg.author.id === botUserId) return false;
-  if (!msg.author.bot) return true;
-  if (msg.mentions.has({ id: botUserId })) return true;
-  return false;
+export const isBotDMsRelevant = (botUserId, agentName) => {
+  if (!agentName) {
+    console.error('isBotDMsRelevant: agentName is required');
+    process.exit(1);
+  }
+  return (msg) => {
+    if (msg.author.id === botUserId) return false;
+    if (!msg.author.bot) return true;
+    if (msg.mentions.users?.has(botUserId)) return true;
+    if (wasMentionedInMessage(msg, botUserId, agentName)) return true;
+    return false;
+  };
 };
 
 /**
@@ -64,7 +74,7 @@ export function handleErrorResponse(context, state, maxFailures, logFn) {
   state.consecutiveFailures++;
   logFn(`Q CLI error response detected (${state.consecutiveFailures}/${maxFailures}) in ${context}`);
   if (state.consecutiveFailures >= maxFailures) {
-    logFn(`Circuit breaker triggered: ${state.consecutiveFailures} consecutive Q CLI errors - exiting`);
+    logFn(`Circuit breaker triggered: ${state.consecutiveFailures} consecutive Q CLI errors -- exiting`);
     process.exit(1);
   }
 }
@@ -94,19 +104,24 @@ export async function getChannelSlowdown(channelId, client) {
  * @param {string} botUserId - The bot's user ID
  * @param {boolean} debugEnabled - Whether debug output is enabled
  * @param {Function} logFn - Logging function
+ * @param {string} agentName - Agent name (required)
  * @example
- * debugBotDMsRouting(messageArray, client.user.id, DEBUG, console.log);
+ * debugBotDMsRouting(messageArray, client.user.id, DEBUG, console.log, 'aiden');
  */
-export function debugBotDMsRouting(messages, botUserId, debugEnabled, logFn) {
+export function debugBotDMsRouting(messages, botUserId, debugEnabled, logFn, agentName) {
+  if (!agentName) {
+    console.error('debugBotDMsRouting: agentName is required');
+    process.exit(1);
+  }
   if (!debugEnabled) return;
   logFn(`\nBot-DMs routing debug:`);
   messages.forEach(msg => {
-    const isRelevant = isBotDMsRelevant(botUserId)(msg);
+    const isRelevant = isBotDMsRelevant(botUserId, agentName)(msg);
     const isOwnBot = msg.author.id === botUserId;
     let reason = '';
     if (isOwnBot) reason = 'own bot message';
     else if (!msg.author.bot) reason = 'human message';
-    else if (msg.mentions.has({ id: botUserId })) reason = 'mentions bot';
+    else if (msg.mentions.users?.has(botUserId)) reason = 'mentions agent';
     else reason = 'other bot message';
 
     logFn(`  Message ${msg.id} from ${msg.author.username}: bot=${msg.author.bot}, relevant=${isRelevant}`);

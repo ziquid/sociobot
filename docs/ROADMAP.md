@@ -88,3 +88,8 @@
    - Replaced deprecated 'ready' event with 'clientReady' in helper scripts
    - Eliminates deprecation warning in stderr
 - [✅] `noDiscord` flag was not being properly recognized when processing messages.
+- [✅] Fix isBotDMsRelevant name mention matching and broken @mention check
+   - Added wasMentionedInMessage() check so agent name mentions are detected
+   - Added "all" and "everyone" as group mention keywords
+   - Fixed msg.mentions.has({ id }) to msg.mentions.users?.has(id) (was always false)
+   - Made agentName required in isBotDMsRelevant, wasMentionedInMessage, and debugBotDMsRouting
