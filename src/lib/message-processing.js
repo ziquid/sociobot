@@ -25,8 +25,9 @@ export const isOwnBotMessage = (botUserId) => (msg) => msg.author.id === botUser
 export const isAfterCutoff = (cutoffId) => (msg) => !cutoffId || msg.id > cutoffId;
 
 /**
- * Create a filter function to check if a bot-dms message is relevant to this bot
- * Relevant messages are: human messages, mentions of the bot, or replies to the bot
+ * Create a filter function to check if a bot-dms message is relevant to this bot.
+ * Human messages are always relevant.  Bot messages are only relevant if they @mention
+ * this bot or name it via wasMentionedInMessage().
  * @param {string} botUserId - The bot's user ID
  * @param {string} agentName - Agent name (required)
  * @returns {Function} Filter function that returns true if message is relevant
@@ -120,9 +121,8 @@ export function debugBotDMsRouting(messages, botUserId, debugEnabled, logFn, age
     const isOwnBot = msg.author.id === botUserId;
     let reason = '';
     if (isOwnBot) reason = 'own bot message';
-    else if (!msg.author.bot) reason = 'human message';
     else if (msg.mentions.users?.has(botUserId)) reason = 'mentions agent';
-    else reason = 'other bot message';
+    else reason = 'not addressed to this bot';
 
     logFn(`  Message ${msg.id} from ${msg.author.username}: bot=${msg.author.bot}, relevant=${isRelevant}`);
     logFn(`    -> ${reason.toUpperCase()}`);

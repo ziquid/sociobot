@@ -525,21 +525,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
     const relevantMessages = [];
     const messageArray = Array.from(messages.values());
 
-    if (DEBUG) {
-      log('Bot-dms filtering debug:');
-      messageArray.forEach(msg => {
-        const isRelevant = isBotDMsRelevant(readyClient.user.id, AGENT_NAME)(msg);
-        const isOwnBot = msg.author.id === readyClient.user.id;
-        let reason = '';
-        if (isOwnBot) reason = 'own bot message';
-        else if (!msg.author.bot) reason = 'human message';
-        else if (msg.mentions.has({ id: readyClient.user.id })) reason = 'mentions bot';
-        else reason = 'other bot message';
-
-        log(`Message ${msg.id} from ${msg.author.username}: bot=${msg.author.bot}, relevant=${isRelevant}`);
-        log(`  -> ${reason.toUpperCase()}`);
-      });
-    }
+    debugBotDMsRouting(messageArray, readyClient.user.id, DEBUG, log, AGENT_NAME);
 
     for (const message of messageArray.filter(isBotDMsRelevant(readyClient.user.id, AGENT_NAME))) {
       // Check if it's a reply to our message
@@ -574,7 +560,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
           if (message && response.response) {
             let responseText = stripThinkTags(response.response).trim();
 
-            // Check for NO_RESPONSE or . directive
+            // Check for NO_RESPONSE or '.' directive
             if (responseText === 'NO_RESPONSE' || responseText === '.') {
               log(`Agent returned ${responseText} -- skipping Discord reply for bot-dms message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
@@ -712,15 +698,13 @@ async function showBacklog(readyClient, lastMessages) {
 
         for (const message of messageArray.filter(isBotDMsRelevant(readyClient.user.id, AGENT_NAME))) {
           if (DEBUG) {
-            const isBot = message.author.bot;
             const isOwnBot = message.author.id === readyClient.user.id;
             let reason = '';
             if (isOwnBot) reason = 'own bot message';
-            else if (!message.author.bot) reason = 'human message';
-            else if (message.mentions.has({ id: readyClient.user.id })) reason = 'mentions bot';
-            else reason = 'other bot message';
+            else if (message.mentions.users?.has(readyClient.user.id)) reason = 'mentions agent';
+            else reason = 'not addressed to this bot';
 
-            log(`Message ${message.id} from ${message.author.username}: bot=${isBot}, relevant=true`);
+            log(`Message ${message.id} from ${message.author.username}: bot=${message.author.bot}, relevant=true`);
             log(`  -> ${reason.toUpperCase()}`);
           }
 
@@ -946,9 +930,9 @@ async function handleRealtimeMessage(message) {
     process.exit(1);
   }
 
-  // Special handling for bot-dms channel: ignore messages from OTHER bots (not our own)
-  if (message.channel.id === BOT_DMS_CHANNEL_ID && message.author.bot && message.author.id !== client.user.id) {
-    if (DEBUG) log(`ROUTING: Ignoring other bot message in #bot-dms from ${message.author.username}`);
+  // Special handling for bot-dms channel: ignore bot messages not addressed to us, pass human messages through
+  if (message.channel.id === BOT_DMS_CHANNEL_ID && !isBotDMsRelevant(client.user.id, AGENT_NAME)(message)) {
+    if (DEBUG) log(`ROUTING: Ignoring bot-dms message from ${message.author.username} -- not addressed to us`);
     return;
   }
 
