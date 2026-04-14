@@ -913,12 +913,12 @@ case "${1:-help}" in
         local LOG_FILES=()
 
         # Check which bot type(s) this bot has
-        if [[ " ${SOCIOBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
-          LOG_FILES+=("${LOGS_DIR}/sociobot.log")
-        fi
-
         if [[ " ${MAILBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
           LOG_FILES+=("${LOGS_DIR}/mailbot.log")
+        fi
+
+        if [[ " ${SOCIOBOT_BOTS[@]} " =~ " ${BOT_NAME} " ]]; then
+          LOG_FILES+=("${LOGS_DIR}/sociobot.log")
         fi
 
         # Show logs
