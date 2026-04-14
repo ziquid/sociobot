@@ -351,8 +351,10 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
         let responseText = stripThinkTags(response.response).trim();
         const aclLimited = response.aclLimited || false;
 
-        // Check for NO_RESPONSE or '.' directives
-        if (responseText === 'NO_RESPONSE' || responseText === '.') {
+        // Check for NO_RESPONSE or '.' directives, or noise phrases
+        if (responseText === 'NO_RESPONSE' || responseText === '.' ||
+            responseText.startsWith('No response needed') ||
+            responseText.startsWith("I understand, but I don't have a specific response.")) {
           log(`Agent returned ${responseText} -- skipping Discord reply for message ${response.messageId}`);
           if (!highestProcessedId || message.id > highestProcessedId) {
             highestProcessedId = message.id;
@@ -562,8 +564,10 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
           if (message && response.response) {
             let responseText = stripThinkTags(response.response).trim();
 
-            // Check for NO_RESPONSE or '.' directive
-            if (responseText === 'NO_RESPONSE' || responseText === '.') {
+            // Check for NO_RESPONSE or '.' directive, or noise phrases
+            if (responseText === 'NO_RESPONSE' || responseText === '.' ||
+                responseText.startsWith('No response needed') ||
+                responseText.startsWith("I understand, but I don't have a specific response.")) {
               log(`Agent returned ${responseText} -- skipping Discord reply for bot-dms message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
                 highestProcessedId = message.id;
@@ -894,6 +898,8 @@ async function shouldSendMessage(message, client) {
   // Don't send if contains NO_RESPONSE or '.'
   if (trimmed.includes('NO_RESPONSE')) return MESSAGE_DONT_SEND;
   if (trimmed === '.') return MESSAGE_DONT_SEND;
+  if (trimmed.startsWith('No response needed')) return MESSAGE_DONT_SEND;
+  if (trimmed.startsWith("I understand, but I don't have a specific response.")) return MESSAGE_DONT_SEND;
 
   // Check for zero-width unicode characters (blank messages from Devon)
   // Common zero-width chars: U+200B (ZWSP), U+200C (ZWNJ), U+200D (ZWJ), U+FEFF (BOM)
@@ -990,8 +996,10 @@ async function handleRealtimeMessage(message) {
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
         const aclLimited = typeof result === 'object' ? result.aclLimited : false;
 
-        // Check for NO_RESPONSE or '.' directives
-        if (responseText === 'NO_RESPONSE' || responseText === '.') {
+        // Check for NO_RESPONSE or '.' directives, or noise phrases
+        if (responseText === 'NO_RESPONSE' || responseText === '.' ||
+            responseText.startsWith('No response needed') ||
+            responseText.startsWith("I understand, but I don't have a specific response.")) {
           log(`Agent returned ${responseText}, skipping Discord reply for message ${message.id}`);
           saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
           return;
