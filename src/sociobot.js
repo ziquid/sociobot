@@ -233,6 +233,7 @@ const EMOJI_MAP = {
   'eight_spoked_asterisk': '✳️',
   'eight_pointed_black_star': '✴️',
   'sparkle': '❇️',
+  'sparkles': '✨',
   'bangbang': '‼️',
   'interrobang': '⁉️',
   'tm': '™️',
