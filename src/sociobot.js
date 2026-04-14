@@ -184,6 +184,7 @@ const EMOJI_MAP = {
   'cowboy': '🤠',
   'partying': '🥳',
   'pleading': '🥺',
+  'pleading_face': '🥺',
   'yawn': '🥱',
   'triumph': '😤',
   'angry': '😠',
