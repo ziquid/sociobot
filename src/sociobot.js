@@ -354,6 +354,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
         // Check for NO_RESPONSE or '.' directives, or noise phrases
         if (responseText === 'NO_RESPONSE' || responseText === '.' ||
             responseText.startsWith('No response needed') ||
+            responseText.startsWith('No response required') ||
             responseText.startsWith("I understand, but I don't have a specific response.")) {
           log(`Agent returned ${responseText} -- skipping Discord reply for message ${response.messageId}`);
           if (!highestProcessedId || message.id > highestProcessedId) {
@@ -567,6 +568,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
             // Check for NO_RESPONSE or '.' directive, or noise phrases
             if (responseText === 'NO_RESPONSE' || responseText === '.' ||
                 responseText.startsWith('No response needed') ||
+                responseText.startsWith('No response required') ||
                 responseText.startsWith("I understand, but I don't have a specific response.")) {
               log(`Agent returned ${responseText} -- skipping Discord reply for bot-dms message ${response.messageId}`);
               if (!highestProcessedId || message.id > highestProcessedId) {
@@ -899,6 +901,7 @@ async function shouldSendMessage(message, client) {
   if (trimmed.includes('NO_RESPONSE')) return MESSAGE_DONT_SEND;
   if (trimmed === '.') return MESSAGE_DONT_SEND;
   if (trimmed.startsWith('No response needed')) return MESSAGE_DONT_SEND;
+  if (trimmed.startsWith('No response required')) return MESSAGE_DONT_SEND;
   if (trimmed.startsWith("I understand, but I don't have a specific response.")) return MESSAGE_DONT_SEND;
 
   // Check for zero-width unicode characters (blank messages from Devon)
@@ -999,6 +1002,7 @@ async function handleRealtimeMessage(message) {
         // Check for NO_RESPONSE or '.' directives, or noise phrases
         if (responseText === 'NO_RESPONSE' || responseText === '.' ||
             responseText.startsWith('No response needed') ||
+            responseText.startsWith('No response required') ||
             responseText.startsWith("I understand, but I don't have a specific response.")) {
           log(`Agent returned ${responseText}, skipping Discord reply for message ${message.id}`);
           saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
