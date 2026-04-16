@@ -420,12 +420,16 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
     // Check if this agent was mentioned, authored message/parent, or participated in thread
     const botUserId = message.client.user.id;
     const wasMentioned = wasMentionedInMessage(message, botUserId, agentName);
+    const content = message.content || '';
+    const mentionsEveryone = message.mentions?.everyone ||
+      /\beveryone\b/i.test(content) ||
+      /\ball\b/i.test(content);
     const isAuthor = await isMessageAuthor(message, botUserId);
     const hasParticipated = await hasParticipatedInThread(message, botUserId);
 
-    // Calculate effective ACL limit: mentioned OR author (3x) > participated (2x) > normal (1x)
+    // Calculate effective ACL limit: mentioned OR author OR @everyone (3x) > participated (2x) > normal (1x)
     let effectiveMaxACL = maxACL;
-    if (wasMentioned || isAuthor) {
+    if (wasMentioned || isAuthor || mentionsEveryone) {
       effectiveMaxACL = maxACL * 3;
     } else if (hasParticipated) {
       effectiveMaxACL = maxACL * 2;
@@ -534,7 +538,7 @@ ${convertedContent}`;
     });
 
     // Add response guidance based on ACL state, mentions, authorship, thread participation, noDiscord
-    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned, isAuthor, noDiscord);
+    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned || mentionsEveryone, isAuthor, noDiscord);
 
     if (debug) {
       console.log('=== REALTIME QUERY ===')
@@ -544,6 +548,7 @@ ${convertedContent}`;
     // Minimal addressing signal for the agent (derived from existing booleans)
     const addressing = [
       wasMentioned ? 'mentioned' : null,
+      mentionsEveryone ? 'everyone' : null,
       isAuthor ? 'author' : null,
       hasParticipated ? 'participated' : null
     ].filter(Boolean).join('+') || 'none';
