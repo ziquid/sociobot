@@ -1,6 +1,6 @@
 import { spawn, execSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdtempSync, rmdirSync, appendFileSync, mkdirSync, createWriteStream } from "fs";
-import { tmpdir, homedir } from "os";
+import { homedir } from "os";
 import { join } from "path";
 import { ChannelType } from "discord.js";
 import https from "https";
@@ -629,7 +629,12 @@ export async function processBatchedMessages(messages, channel, agentName, debug
     return [];
   }
 
-  const tempDir = mkdtempSync(join(tmpdir(), 'sociobot-'));
+  const agentHome = expandTilde(`~${agentName}`);
+  const agentTmpDir = join(agentHome, 'tmp');
+  if (!existsSync(agentTmpDir)) {
+    mkdirSync(agentTmpDir, { recursive: true });
+  }
+  const tempDir = mkdtempSync(join(agentTmpDir, 'sociobot-'));
   const inputFile = join(tempDir, 'messages.json');
   const outputFile = join(tempDir, 'responses.json');
 
