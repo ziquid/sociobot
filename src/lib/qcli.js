@@ -690,13 +690,45 @@ export async function processBatchedMessages(messages, channel, agentName, debug
           }
         }
 
+        // Add attachment data so voice messages and other attachments are not silently dropped
+        if (msg.attachments.size > 0) {
+          const MAX_DOWNLOAD_SIZE = 10 * 1024 * 1024;
+          messageObj.attachments = await Promise.all(
+            Array.from(msg.attachments.values()).map(async attachment => {
+              const attObj = {
+                name: attachment.name,
+                contentType: attachment.contentType || 'unknown',
+                url: attachment.url,
+                size: attachment.size
+              };
+
+              // Attempt transcription for audio files
+              if (isAudioFile(attachment.contentType) && attachment.size < MAX_DOWNLOAD_SIZE) {
+                try {
+                  const localPath = await downloadAttachment(attachment.url, attachment.name, agentName);
+                  const transcription = transcribeAudio(localPath);
+                  if (transcription) {
+                    attObj.transcription = transcription;
+                  }
+                } catch (error) {
+                  if (debug) {
+                    log(`Could not transcribe audio attachment ${attachment.name} for batch: ${error.message}`);
+                  }
+                }
+              }
+
+              return attObj;
+            })
+          );
+        }
+
         return messageObj;
       }))
     };
 
     const messageJson = JSON.stringify(messageData, null, 2);
 
-    let query = `While the bot was down, these messages were sent in ${messageData.channel.name}.  The message data is in the file ${inputFile}.  Please read the file and respond to whichever messages you wish to, or none at all.  Write your responses *this time only* as a JSON array to ${outputFile} with format: [{"messageId": "123", "response": "your response"}].  Only respond to messages that warrant a response.`;
+    let query = `While the bot was down, these messages were sent in ${messageData.channel.name}.  The message data is in the file ${inputFile}.  Please read the file and respond to whichever messages you wish to, or none at all.  Write your responses *this time only* as a JSON array to ${outputFile} with format: [{"messageId": "123", "response": "your response"}].  Only respond to messages that warrant a response.  Messages may include an "attachments" array -- audio attachments may include a "transcription" field with the transcribed text.`;
 
     // Add note about informationalOnly field
     const hasInformationalOnly = messageData.messages.some(m => m.informationalOnly);
