@@ -894,8 +894,8 @@ async function shouldSendMessage(message, client) {
   // Check if message is empty, contains only NO_RESPONSE, or zero-width characters
   const trimmed = message.content.trim();
 
-  // Don't send if empty after trimming
-  if (!trimmed) return MESSAGE_DONT_SEND;
+  // Don't send if empty after trimming and no attachments (voice messages have empty content)
+  if (!trimmed && message.attachments.size === 0) return MESSAGE_DONT_SEND;
 
   // Don't send if contains NO_RESPONSE or '.'
   if (trimmed.includes('NO_RESPONSE')) return MESSAGE_DONT_SEND;
