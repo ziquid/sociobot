@@ -799,6 +799,7 @@ case "${1:-help}" in
     fi
     ;;
   stop|kill)
+    stop_monitor
     if [[ -n "$2" ]]; then
       shift  # Remove command name
       for BOT_NAME in "$@"; do
@@ -818,7 +819,6 @@ case "${1:-help}" in
         fi
       done
     else
-      stop_monitor
       stop_all_bots
       show_status
     fi
