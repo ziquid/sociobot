@@ -192,7 +192,7 @@ function logInteraction(agentName, data) {
   }
 }
 
-async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null, canReply = true) {
+async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null, canReply = true, effectiveMaxACL = null) {
   activeProcesses++;
 
   const isDM = channel.type === ChannelType.DM;
@@ -264,18 +264,19 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
     env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, yaml';
   } else {
     const maxACL = getMaxACL(channel, debug);
+    const limit = effectiveMaxACL ?? maxACL;
     env.ZDS_AI_AGENT_MESSAGE_AUTHOR = authorUsername;
     env.ZDS_AI_AGENT_MESSAGE_TIMESTAMP_UTC = messageDate.toISOString();
     env.ZDS_AI_AGENT_MESSAGE_TIMESTAMP_LOCAL = messageDate.toLocaleString('en-US', { timeZoneName: 'short' });
     env.ZDS_AI_AGENT_MESSAGE_ACL = currentACL.toString();
-    env.ZDS_AI_AGENT_MESSAGE_MAX_ACL = maxACL.toString();
+    env.ZDS_AI_AGENT_MESSAGE_MAX_ACL = limit.toString();
 
     // Adjust accepted/forbidden responses based on ACL state
-    if ((currentACL > maxACL) || !canReply) {
+    if ((currentACL > limit) || !canReply) {
       // only NO_RESPONSE allowed
       env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'NO_RESPONSE';
       env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, json, yaml, REACTION:';
-    } else if (currentACL === maxACL) {
+    } else if (currentACL === limit) {
       // At ACL limit: reactions and NO_RESPONSE only
       env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'NO_RESPONSE, REACTION:';
       env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, json, yaml';
@@ -565,7 +566,8 @@ ${convertedContent}`;
       message.client.user.username,
       replyContext,
       addressing,
-      !noDiscord // take into account ACL?
+      !noDiscord, // take into account ACL?
+      effectiveMaxACL
     );
 
     // Log the ZAI-CLI response
