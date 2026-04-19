@@ -192,7 +192,7 @@ function logInteraction(agentName, data) {
   }
 }
 
-async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null, canReply = true, effectiveMaxACL = null) {
+async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null, canReply = true, messageType = null, effectiveMaxACL = null) {
   activeProcesses++;
 
   const isDM = channel.type === ChannelType.DM;
@@ -285,6 +285,13 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
       env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'text, markdown, NO_RESPONSE, REACTION:';
       env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'json, yaml';
     }
+  }
+
+  // discord-response type: override response constraints to NO_RESPONSE only
+  if (messageType === 'discord-response') {
+    env.ZDS_AI_AGENT_MESSAGE_TYPE = 'discord-response';
+    env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'NO_RESPONSE';
+    env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, json, yaml, REACTION:';
   }
 
   if (debug) {
@@ -396,7 +403,7 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
   });
 }
 
-export async function processRealtimeMessage(message, channel, agentName, debug = false, noDiscord = false) {
+export async function processRealtimeMessage(message, channel, agentName, debug = false, noDiscord = false, messageType = null) {
   // Circuit breaker - stop if failing repeatedly
   if (consecutiveFailures >= MAX_FAILURES) {
     log(`Circuit breaker: ${consecutiveFailures} failures, not trying`);
@@ -567,6 +574,7 @@ ${convertedContent}`;
       replyContext,
       addressing,
       !noDiscord, // take into account ACL?
+      messageType,
       effectiveMaxACL
     );
 

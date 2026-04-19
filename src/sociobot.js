@@ -1200,15 +1200,9 @@ client.on('messageCreate', async (message) => {
 // Handle reaction events
 client.on('messageReactionAdd', async (reaction, user) => {
   try {
-    // Skip until Aiden fixes feature/86-discord-response-message-type
-    if ('Aiden_status_of_feature_86' !== 'fixed') {
-      if (DEBUG) log(`Skipping reaction notification until Aiden fixes feature/86`);
-      return;
-    }
-
-    // Skip if the reactor is this bot
-    if (user.id === client.user.id) {
-      if (DEBUG) log(`Skipping self-reaction notification`);
+    // Skip if the reactor is a bot
+    if (user.bot) {
+      if (DEBUG) log(`Skipping bot reaction notification`);
       return;
     }
 
@@ -1242,7 +1236,7 @@ Reacted with ${emojiIdentifier} to message from @${messageAuthor} (ID: ${message
 
 This message is for your information only.  Do not reply -- replies to this message will not be processed.`;
 
-    // Process as informational message (no response expected)
+    // Process as discord-response type: agent must output NO_RESPONSE, no LLM inference needed
     await processRealtimeMessage(
       {
         content: notification,
@@ -1256,7 +1250,8 @@ This message is for your information only.  Do not reply -- replies to this mess
       message.channel,
       AGENT_NAME,
       DEBUG,
-      true // noDiscord = true, don't send response back to Discord
+      true, // noDiscord = true, don't send response back to Discord
+      'discord-response'
     );
 
   } catch (error) {
