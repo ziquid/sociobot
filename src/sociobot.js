@@ -352,7 +352,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
         const aclLimited = response.aclLimited || false;
 
         // Check for NO_RESPONSE or '.' directives, or noise phrases
-        if (responseText === 'NO_RESPONSE' || responseText === '.' ||
+        if (responseText.startsWith('NO_RESPONSE') || responseText === '.' ||
             responseText.startsWith('No response needed') ||
             responseText.startsWith('No response required') ||
             responseText.startsWith("I understand, but I don't have a specific response.")) {
@@ -566,7 +566,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
             let responseText = stripThinkTags(response.response).trim();
 
             // Check for NO_RESPONSE or '.' directive, or noise phrases
-            if (responseText === 'NO_RESPONSE' || responseText === '.' ||
+            if (responseText.startsWith('NO_RESPONSE') || responseText === '.' ||
                 responseText.startsWith('No response needed') ||
                 responseText.startsWith('No response required') ||
                 responseText.startsWith("I understand, but I don't have a specific response.")) {
@@ -905,8 +905,8 @@ async function shouldSendMessage(message, client) {
   if (trimmed.startsWith("I understand, but I don't have a specific response.")) return MESSAGE_DONT_SEND;
 
   // Check for zero-width unicode characters (blank messages from Devon)
-  // Common zero-width chars: U+200B (ZWSP), U+200C (ZWNJ), U+200D (ZWJ), U+FEFF (BOM)
-  const hasOnlyZeroWidth = /^[\u200B\u200C\u200D\uFEFF]+$/.test(trimmed);
+  // Common zero-width chars: U+200B (ZWSP), U+200C (ZWNJ), U+200D (ZWJ), U+200E (LRM), U+FEFF (BOM)
+  const hasOnlyZeroWidth = /^[\u200B\u200C\u200D\u200E\uFEFF]+$/.test(trimmed);
   if (hasOnlyZeroWidth) return MESSAGE_DONT_SEND;
 
   // Active slowdown?  Delay.
@@ -1000,7 +1000,7 @@ async function handleRealtimeMessage(message) {
         const aclLimited = typeof result === 'object' ? result.aclLimited : false;
 
         // Check for NO_RESPONSE or '.' directives, or noise phrases
-        if (responseText === 'NO_RESPONSE' || responseText === '.' ||
+        if (responseText.startsWith('NO_RESPONSE') || responseText === '.' ||
             responseText.startsWith('No response needed') ||
             responseText.startsWith('No response required') ||
             responseText.startsWith("I understand, but I don't have a specific response.")) {
