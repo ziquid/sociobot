@@ -55,6 +55,7 @@ import {
   isOwnBotMessage,
   isAfterCutoff,
   isBotDMsRelevant,
+  isSuppressedMessageContent,
   isErrorResponse,
   handleErrorResponse,
   getChannelSlowdown,
@@ -303,11 +304,15 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
         const isBot = msg.author.bot;
         const isOwnBot = msg.author.id === readyClient.user.id;
         const isAfterCutoffCheck = isAfterCutoff(cutoffMessageId)(msg);
-        log(`Message ${msg.id} from ${msg.author.username}: bot=${isBot}, ownBot=${isOwnBot}, afterCutoff=${isAfterCutoffCheck}, webhookId=${msg.webhookId || 'none'}`);
+        const trimmed = msg.content.trim();
+        const isNoResponse = trimmed.startsWith('NO_RESPONSE') || trimmed === '.' ||
+          /^[\u200B\u200C\u200D\u200E\uFEFF]+$/.test(trimmed);
+        log(`Message ${msg.id} from ${msg.author.username}: bot=${isBot}, ownBot=${isOwnBot}, afterCutoff=${isAfterCutoffCheck}, noResponse=${isNoResponse}, webhookId=${msg.webhookId || 'none'}`);
 
         let reason = '';
         if (isOwnBot) reason = 'own bot message';
         else if (!isAfterCutoffCheck) reason = 'before cutoff';
+        else if (isNoResponse) reason = 'no-response content';
         else reason = 'will process';
 
         log(`  -> ${reason.toUpperCase()}`);
@@ -315,7 +320,8 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
       return true;
     })
     .filter(isAfterCutoff(cutoffMessageId))
-    .filter(msg => !isOwnBotMessage(readyClient.user.id)(msg));
+    .filter(msg => !isOwnBotMessage(readyClient.user.id)(msg))
+    .filter(msg => !isSuppressedMessageContent(msg.content));
 
   if (newMessages.size > 0) {
     const sortedMessages = Array.from(newMessages.values()).sort((a, b) => a.id - b.id);

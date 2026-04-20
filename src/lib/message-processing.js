@@ -49,6 +49,27 @@ export const isBotDMsRelevant = (botUserId, agentName) => {
 };
 
 /**
+ * Check if a message's content should be suppressed (NO_RESPONSE, zero-width-only, noise phrases).
+ * Used in both real-time and batch paths to filter out silent/no-op bot messages.
+ * @param {string} content - Raw message content string
+ * @returns {boolean} True if the content should be suppressed and not forwarded to the agent
+ * @example
+ * const filtered = messages.filter(msg => !isSuppressedMessageContent(msg.content));
+ */
+export function isSuppressedMessageContent(content) {
+  const trimmed = (content || '').trim();
+  if (!trimmed) return true;
+  if (trimmed.includes('NO_RESPONSE')) return true;
+  if (trimmed === '.') return true;
+  if (trimmed.startsWith('No response needed')) return true;
+  if (trimmed.startsWith('No response required')) return true;
+  if (trimmed.startsWith("I understand, but I don't have a specific response.")) return true;
+  // Zero-width / invisible characters including U+200E (LRM) used by some bots
+  if (/^[\u200B\u200C\u200D\u200E\uFEFF]+$/.test(trimmed)) return true;
+  return false;
+}
+
+/**
  * Check if a response string indicates a Q CLI error
  * @param {string} response - The response string to check
  * @returns {boolean} True if response indicates an error
