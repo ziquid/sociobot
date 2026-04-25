@@ -185,7 +185,7 @@ export function wasMentionedInMessage(message, botUserId, agentName) {
  * @param {boolean} noDiscord - Whether discord replies are forbidden
  * @returns {string} - Query with appropriate response guidance
  */
-export function addResponseGuidance(query, currentACL, maxACL, debug = false, hasParticipated = false, wasMentioned = false, isAuthor = false, noDiscord = false) {
+export function addResponseGuidance(query, currentACL, maxACL, debug = false, hasParticipated = false, wasMentioned = false, isAuthor = false, noDiscord = false, mentionsEveryone = false) {
 
   // No Discord turned on?  Add No Response message.
   if (noDiscord) {
@@ -200,9 +200,9 @@ export function addResponseGuidance(query, currentACL, maxACL, debug = false, ha
   let effectiveMaxACL = maxACL;
   let reason = '';
 
-  if (wasMentioned || isAuthor) {
+  if (wasMentioned || isAuthor || mentionsEveryone) {
     effectiveMaxACL = maxACL * 3;
-    reason = wasMentioned ? 'mentioned' : 'author';
+    reason = wasMentioned ? 'mentioned' : (mentionsEveryone ? 'everyone' : 'author');
   } else if (hasParticipated) {
     effectiveMaxACL = maxACL * 2;
     reason = 'participated';
@@ -218,18 +218,20 @@ export function addResponseGuidance(query, currentACL, maxACL, debug = false, ha
       console.log(`Beyond ACL limit (${currentACL} > ${effectiveMaxACL}), adding no response message`);
     }
     return query + ACL_NO_RESPONSE_MESSAGE;
-  } else if ((wasMentioned || isAuthor || hasParticipated) && currentACL >= maxACL && currentACL < effectiveMaxACL) {
+  } else if ((wasMentioned || isAuthor || mentionsEveryone || hasParticipated) && currentACL >= maxACL && currentACL < effectiveMaxACL) {
     // Agent is beyond normal limit but within their increased limit
     let message = '';
     if (wasMentioned) {
       message = `\n\nNote: Since you were explicitly mentioned in this message, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}).  You are currently at ACL ${currentACL + 1}.`;
+    } else if (mentionsEveryone) {
+      message = `\n\nNote: Since this message mentions @everyone, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}).  You are currently at ACL ${currentACL + 1}.`;
     } else if (isAuthor) {
       message = `\n\nNote: Since you created the message or its parent, your ACL limit is ${effectiveMaxACL} (tripled from ${maxACL}).  You are currently at ACL ${currentACL + 1}.`;
     } else if (hasParticipated) {
       message = `\n\nNote: Since you already participated in this message thread, your ACL limit is ${effectiveMaxACL} (doubled from ${maxACL}).  You are currently at ACL ${currentACL + 1}.`;
     }
     if (debug) {
-      console.log(`Agent ${reason} in thread, has ${reason === 'mentioned' || reason === 'author' ? 'tripled' : 'doubled'} ACL limit: ${effectiveMaxACL}`);
+      console.log(`Agent ${reason} in thread, has ${reason === 'mentioned' || reason === 'author' || reason === 'everyone' ? 'tripled' : 'doubled'} ACL limit: ${effectiveMaxACL}`);
     }
     return query + message;
   }

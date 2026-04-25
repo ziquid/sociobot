@@ -105,12 +105,16 @@ export async function sendLongMessage(message, content, debug = false, audioPath
   // Check if this agent was mentioned, authored message/parent, or participated in thread
   const botUserId = message.client.user.id;
   const wasMentioned = agentName ? wasMentionedInMessage(message, botUserId, agentName) : false;
+  const rawContent = message.content || '';
+  const mentionsEveryone = message.mentions?.everyone ||
+    /\beveryone\b/i.test(rawContent) ||
+    /\ball\b/i.test(rawContent);
   const isAuthor = await isMessageAuthor(message, botUserId);
   const hasParticipated = await hasParticipatedInThread(message, botUserId);
 
-  // Calculate effective ACL limit: mentioned OR author (3x) > participated (2x) > normal (1x)
+  // Calculate effective ACL limit: mentioned OR author OR @everyone (3x) > participated (2x) > normal (1x)
   let effectiveMaxACL = maxACL;
-  if (wasMentioned || isAuthor) {
+  if (wasMentioned || isAuthor || mentionsEveryone) {
     effectiveMaxACL = maxACL * 3;
   } else if (hasParticipated) {
     effectiveMaxACL = maxACL * 2;

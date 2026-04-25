@@ -546,7 +546,7 @@ ${convertedContent}`;
     });
 
     // Add response guidance based on ACL state, mentions, authorship, thread participation, noDiscord
-    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned || mentionsEveryone, isAuthor, noDiscord);
+    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned, isAuthor, noDiscord, mentionsEveryone);
 
     if (debug) {
       console.log('=== REALTIME QUERY ===')
