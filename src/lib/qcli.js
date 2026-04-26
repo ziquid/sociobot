@@ -138,11 +138,11 @@ export function encodeSpeech(text, agentName) {
     }
     env.ZDS_AI_AGENT_SESSION = `sociobot-${process.pid}`;
 
-    const audioPath = execSync(`encode-speech.sh -`, {
+    const audioPath = execSync(`encode-speech.sh --try-video -`, {
       input: text,
       encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-      timeout: 60000, // 60 second timeout
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 90000, // 90s: TTS + up to 17s for video generation
       env
     });
     return audioPath.toString().trim();
