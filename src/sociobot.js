@@ -4,6 +4,7 @@ import { showHelp } from './lib/help.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { resolveEmoji } from './lib/emoji-map.js';
 
 // Check for version option
 if (process.argv.includes('--version') || process.argv.includes('-v')) {
@@ -100,147 +101,6 @@ const MESSAGE_FETCH_LIMIT = 20;
 let consecutiveFailures = 0;
 let startupComplete = false;
 const messageQueue = [];
-
-// Common emoji name to Unicode mapping
-const EMOJI_MAP = {
-  'thumbsup': '👍',
-  'thumbsdown': '👎',
-  'heart': '❤️',
-  'heart_eyes': '😍',
-  '100': '💯',
-  'fire': '🔥',
-  'eyes': '👀',
-  'thinking': '🤔',
-  'tada': '🎉',
-  'rocket': '🚀',
-  'ship': '🚢',
-  'cruise_ship': '🛳️',
-  'star': '⭐',
-  'check': '✅',
-  'x': '❌',
-  'wave': '👋',
-  'waves': '👋',
-  'clap': '👏',
-  'pray': '🙏',
-  'muscle': '💪',
-  'brain': '🧠',
-  'bulb': '💡',
-  'warning': '⚠️',
-  'question': '❓',
-  'exclamation': '❗',
-  'laughing': '😂',
-  'smile': '😊',
-  'grin': '😁',
-  'joy': '😂',
-  'rofl': '🤣',
-  'sunglasses': '😎',
-  'sob': '😭',
-  'scream': '😱',
-  'flushed': '😳',
-  'shrug': '🤷',
-  'sunrise': '🌅',
-  'sunset': '🌇',
-  'sun': '☀️',
-  'moon': '🌙',
-  'cloud': '☁️',
-  'rain': '🌧️',
-  'snow': '❄️',
-  'rainbow': '🌈',
-  'two_hearts': '💕',
-  'sparkling_heart': '💖',
-  'heartbeat': '💓',
-  'heartpulse': '💗',
-  'blue_heart': '💙',
-  'green_heart': '💚',
-  'yellow_heart': '💛',
-  'purple_heart': '💜',
-  'orange_heart': '🧡',
-  'black_heart': '🖤',
-  'white_heart': '🤍',
-  'brown_heart': '🤎',
-  'broken_heart': '💔',
-  'rose': '🌹',
-  'kiss': '💋',
-  'hug': '🤗',
-  'blush': '😊',
-  'relaxed': '☺️',
-  'wink': '😉',
-  'yum': '😋',
-  'sleeping': '😴',
-  'zzz': '💤',
-  'relieved': '😌',
-  'innocent': '😇',
-  'stuck_out_tongue': '😛',
-  'stuck_out_tongue_winking_eye': '😜',
-  'stuck_out_tongue_closed_eyes': '😝',
-  'sweat_smile': '😅',
-  'pensive': '😔',
-  'confused': '😕',
-  'upside_down': '🙃',
-  'money_mouth': '🤑',
-  'nerd': '🤓',
-  'zipper_mouth': '🤐',
-  'raised_eyebrow': '🤨',
-  'exploding_head': '🤯',
-  'cowboy': '🤠',
-  'partying': '🥳',
-  'pleading': '🥺',
-  'pleading_face': '🥺',
-  'yawn': '🥱',
-  'triumph': '😤',
-  'angry': '😠',
-  'rage': '😡',
-  'smiling_imp': '😈',
-  'skull': '💀',
-  'hankey': '💩',
-  'poop': '💩',
-  'shit': '💩',
-  'clown': '🤡',
-  'robot': '🤖',
-  'alien': '👽',
-  'ghost': '👻',
-  'ok_hand': '👌',
-  'v': '✌️',
-  'peace': '✌️',
-  'crossed_fingers': '🤞',
-  'metal': '🤘',
-  'call_me': '🤙',
-  '+1': '👍',
-  '-1': '👎',
-  'fist': '✊',
-  'facepunch': '👊',
-  'punch': '👊',
-  'left_facing_fist': '🤛',
-  'right_facing_fist': '🤜',
-  'raised_hand': '✋',
-  'palm': '🤚',
-  'ok': '🆗',
-  'sos': '🆘',
-  'no_entry': '⛔',
-  'name_badge': '📛',
-  'no_entry_sign': '🚫',
-  'heavy_check_mark': '✔️',
-  'white_check_mark': '✅',
-  'ballot_box_with_check': '☑️',
-  'heavy_multiplication_x': '✖️',
-  'x_mark': '❌',
-  'negative_squared_cross_mark': '❎',
-  'heavy_plus_sign': '➕',
-  'heavy_minus_sign': '➖',
-  'heavy_division_sign': '➗',
-  'curly_loop': '➰',
-  'loop': '➿',
-  'part_alternation_mark': '〽️',
-  'eight_spoked_asterisk': '✳️',
-  'eight_pointed_black_star': '✴️',
-  'sparkle': '❇️',
-  'sparkles': '✨',
-  'bangbang': '‼️',
-  'interrobang': '⁉️',
-  'tm': '™️',
-  'copyright': '©️',
-  'registered': '®️'
-};
 
 const client = new Client({
   intents: [
@@ -376,11 +236,10 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
           let emoji = lines[0].substring('REACTION:'.length).trim();
           // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
           emoji = emoji.replace(/^:|:$/g, '');
-          // Map common emoji names to Unicode
-          emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
+          const emojiResolved = resolveEmoji(client, emoji);
           log(`Agent returned REACTION directive -- reacting to message ${response.messageId} with ${emoji}`);
           try {
-            await message.react(emoji);
+            await message.react(emojiResolved);
             log(`Reaction SUCCESS for message ${response.messageId}: ${emoji}`);
           } catch (error) {
             log(`Reaction FAILED for message ${response.messageId} with ${emoji}: ${error.message}`);
@@ -590,11 +449,10 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
               let emoji = lines[0].substring('REACTION:'.length).trim();
               // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
               emoji = emoji.replace(/^:|:$/g, '');
-              // Map common emoji names to Unicode
-              emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
+              const emojiResolved = resolveEmoji(client, emoji);
               log(`Agent returned REACTION directive -- reacting to bot-dms message ${response.messageId} with ${emoji}`);
               try {
-                await message.react(emoji);
+                await message.react(emojiResolved);
                 log(`Reaction SUCCESS for bot-dms message ${response.messageId}: ${emoji}`);
               } catch (error) {
                 log(`Reaction FAILED for bot-dms message ${response.messageId} with ${emoji}: ${error.message}`);
@@ -1021,11 +879,10 @@ async function handleRealtimeMessage(message) {
           let emoji = lines[0].substring('REACTION:'.length).trim();
           // Remove wrapping colons - Discord.js expects emoji name without colons, or Unicode emoji
           emoji = emoji.replace(/^:|:$/g, '');
-          // Map common emoji names to Unicode
-          emoji = EMOJI_MAP[emoji.toLowerCase()] || emoji;
+          const emojiResolved = resolveEmoji(client, emoji);
           log(`Agent returned REACTION directive, reacting to message ${message.id} with ${emoji}`);
           try {
-            await message.react(emoji);
+            await message.react(emojiResolved);
             log(`Reaction SUCCESS for message ${message.id}: ${emoji}`);
           } catch (error) {
             log(`Reaction FAILED for message ${message.id} with ${emoji}: ${error.message}`);

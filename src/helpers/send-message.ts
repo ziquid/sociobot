@@ -3,10 +3,12 @@
 import { Client, GatewayIntentBits, TextChannel, DMChannel, User } from 'discord.js';
 import { getConfig } from '../lib/config.js';
 import { sendChannelMessage, sendWebhookMessage } from '../lib/message-utils.js';
+import { resolveEmoji } from '../lib/emoji-map.js';
 
-// Usage: ./send-message.ts <channel-id-or-name> "message text"
-// Usage: ./send-message.ts dm <user-id> "message text"
-// Usage: ./send-message.ts webhook <channel-id-or-name> "message text"
+// Usage: sb-send-message <channel-id-or-name> "message text"
+// Usage: sb-send-message dm <user-id> "message text"
+// Usage: sb-send-message webhook <channel-id-or-name> "message text"
+// Usage: sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"
 // Agent handle is read from ZDS_AI_AGENT_HANDLE environment variable
 
 const agentHandle = process.env.ZDS_AI_AGENT_HANDLE;
@@ -20,14 +22,18 @@ if (!agentHandle) {
 }
 
 if (!target) {
-  console.error('Usage: ./send-message.ts <channel-id-or-name> "message"');
-  console.error('   OR: ./send-message.ts dm <user-id> "message"');
-  console.error('   OR: ./send-message.ts webhook <channel-id-or-name> "message"');
+  console.error('Usage: sb-send-message <channel-id-or-name> "message"');
+  console.error('   OR: sb-send-message dm <user-id> "message"');
+  console.error('   OR: sb-send-message webhook <channel-id-or-name> "message"');
+  console.error('   OR: sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"');
+  console.error('');
   console.error('Examples:');
-  console.error('  ./send-message.ts 1234567890 "Hello channel!"');
-  console.error('  ./send-message.ts bot-testing "Hello channel!"');
-  console.error('  ./send-message.ts dm 9876543210 "Hello user!"');
-  console.error('  ./send-message.ts webhook bot-testing "Hello via webhook!"');
+  console.error('  sb-send-message 1234567890 "Hello channel!"');
+  console.error('  sb-send-message bot-testing "Hello channel!"');
+  console.error('  sb-send-message dm 9876543210 "Hello user!"');
+  console.error('  sb-send-message webhook bot-testing "Hello via webhook!"');
+  console.error('  sb-send-message bot-testing 1234567890123456789 "REACTION:thumbsup"');
+  console.error('  sb-send-message bot-testing 1234567890123456789 "REACTION:👍"');
   console.error('');
   console.error('Note: Agent handle is read from ZDS_AI_AGENT_HANDLE environment variable');
   process.exit(1);
@@ -118,13 +124,33 @@ client.once('clientReady', async () => {
         console.error('Error: Channel message requires message text');
         process.exit(1);
       }
-      targetChannel = await resolveChannel(client, target);
+      const channel = await resolveChannel(client, target);
+
+      if (messageText?.startsWith('REACTION:')) {
+        const messageId = userId;
+        if (!/^\d+$/.test(messageId)) {
+          console.error('Error: REACTION: requires a numeric message ID as the second argument');
+          process.exit(1);
+        }
+        const emojiName = messageText.slice('REACTION:'.length).trim();
+        if (!emojiName) {
+          console.error('Error: REACTION: requires an emoji name or character (e.g. REACTION:thumbsup or REACTION:👍)');
+          process.exit(1);
+        }
+        const emoji = resolveEmoji(client, emojiName);
+        console.log(`Adding reaction to message ${messageId} in ${channel.name}...`);
+        const targetMessage = await channel.messages.fetch(messageId);
+        await targetMessage.react(emoji as any);
+        console.log(`Done`);
+        process.exit(0);
+      }
+
+      targetChannel = channel;
       message = userId; // In channel mode, userId is actually the message
-      console.log(`Sending to channel ${targetChannel.name}...`);
+      console.log(`Sending to channel ${channel.name}...`);
     }
 
     if (targetChannel && message) {
-      // Send message to channel with ACL footer
       await sendChannelMessage(targetChannel, message, 1);
       console.log(`Message sent successfully`);
     }
