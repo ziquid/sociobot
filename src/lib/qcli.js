@@ -96,6 +96,40 @@ async function downloadAttachment(url, filename, agentName) {
   });
 }
 
+// Cache for agent environment variables from `zai pv` (per agent, 5-minute TTL)
+const agentEnvCache = new Map();
+const AGENT_ENV_CACHE_TTL = 5 * 60 * 1000;
+
+// Fetch agent-specific environment variables via `zai pv <agentName>`.
+// Returns all vars (ZDS_AI_* plus API keys) so agent-specific keys override Docker defaults.
+// Results are cached per agent for AGENT_ENV_CACHE_TTL to avoid blocking the event loop on
+// every message.
+function getAgentEnv(agentName) {
+  const cached = agentEnvCache.get(agentName);
+  if (cached && Date.now() - cached.timestamp < AGENT_ENV_CACHE_TTL) {
+    return cached.vars;
+  }
+  try {
+    const zaiEnvOutput = execSync(`zai pv ${agentName}`, {
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
+      env: process.env
+    });
+    const vars = {};
+    for (const line of zaiEnvOutput.split('\n')) {
+      const match = line.match(/^([A-Z][A-Z0-9_]+)=(.*)$/);
+      if (match) {
+        vars[match[1]] = match[2].replace(/^'(.*)'$/, '$1');
+      }
+    }
+    agentEnvCache.set(agentName, { vars, timestamp: Date.now() });
+    return vars;
+  } catch (error) {
+    log(`Failed to get agent env for ${agentName}: ${error.message}`);
+    return {};
+  }
+}
+
 // Transcribe audio file using extract-text.sh command
 function transcribeAudio(filePath) {
   try {
@@ -114,23 +148,7 @@ function transcribeAudio(filePath) {
 // Encode text as speech using encode-speech command
 export function encodeSpeech(text, agentName) {
   try {
-    // Get agent environment variables from zai
-    const zaiEnvOutput = execSync(`zai pv ${agentName}`, {
-      encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024,
-      env: process.env
-    });
-
-    // Parse environment variables from zai pv output
-    const env = { ...process.env };
-    const envLines = zaiEnvOutput.split('\n').slice(1); // Skip first line (command)
-
-    for (const line of envLines) {
-      const match = line.match(/^(ZDS_AI_[^=]+)=(.*)$/);
-      if (match) {
-        env[match[1]] = match[2].replace(/^'(.*)'$/, '$1'); // Remove surrounding quotes if present
-      }
-    }
+    const env = { ...process.env, ...getAgentEnv(agentName) };
 
     // Add required environment variables for encode-speech.sh
     if (env.ZDS_AI_AGENT_LOGS_DIR) {
@@ -232,9 +250,10 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
     members = channelMembers.map(member => member.user.username).join(',');
   }
 
-  // Build environment with API keys from process.env (passed by botctl)
+  // Build environment: Docker defaults → agent-specific vars (API keys, ZDS_AI_ config) → message context
   const env = {
     ...process.env,
+    ...getAgentEnv(agentName),
     ZDS_AI_AGENT_MESSAGE_SOURCE: 'discord',
     ZDS_AI_AGENT_MESSAGE_CHANNEL: channelName,
     ZDS_AI_AGENT_MESSAGE_PRIVACY: privacy,
