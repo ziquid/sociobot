@@ -418,7 +418,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
       log(`Found ${sortedMessages.length} relevant messages in bot-dms channel`);
 
       // Process the relevant messages
-      const responses = await processBatchedMessages(sortedMessages, channel, AGENT_NAME, DEBUG, NO_DISCORD);
+      const responses = await processBatchedMessages(sortedMessages, channel, AGENT_NAME, DEBUG, NO_DISCORD, 4);
 
       if (!NO_DISCORD) {
         // Send responses to Discord
@@ -856,7 +856,7 @@ async function handleRealtimeMessage(message) {
         return;
       }
 
-      const result = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD);
+      const result = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD, null, message.channel.id === BOT_DMS_CHANNEL_ID ? 4 : 1);
 
       if (result && !NO_DISCORD) {
         let responseText = stripThinkTags(typeof result === 'string' ? result : result.response).trim();
@@ -1063,9 +1063,9 @@ client.on('messageCreate', async (message) => {
 // Handle reaction events
 client.on('messageReactionAdd', async (reaction, user) => {
   try {
-    // Skip if the reactor is a bot
-    if (user.bot) {
-      if (DEBUG) log(`Skipping bot reaction notification`);
+    // Skip self-reactions
+    if (user.id === client.user.id) {
+      if (DEBUG) log(`Skipping own bot reaction notification`);
       return;
     }
 
@@ -1114,7 +1114,8 @@ This message is for your information only.  Do not reply -- replies to this mess
       AGENT_NAME,
       DEBUG,
       true, // noDiscord = true, don't send response back to Discord
-      'discord-response'
+      'discord-response',
+      message.channel.id === BOT_DMS_CHANNEL_ID ? 4 : 1
     );
 
   } catch (error) {

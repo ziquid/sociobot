@@ -30,7 +30,7 @@ function loadServerConfig(guildId) {
  * @param {boolean} debug - Enable debug logging
  * @returns {number} Maximum ACL allowed
  */
-export function getMaxACL(channel, debug = false) {
+export function getMaxACL(channel, debug = false, minACL = 1) {
   if (!channel.guild) {
     return 2;
   }
@@ -46,7 +46,7 @@ export function getMaxACL(channel, debug = false) {
     return channel.permissionsFor(member)?.has('ViewChannel');
   }).size;
 
-  const calculatedMaxACL = Math.max(1, 5 - zdsBotCount);
+  const calculatedMaxACL = Math.max(minACL, 5 - zdsBotCount);
 
   // Check for per-agent ACL limit (can only lower, not raise)
   if (process.env.MAX_ACL) {

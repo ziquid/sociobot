@@ -210,7 +210,7 @@ function logInteraction(agentName, data) {
   }
 }
 
-async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null, canReply = true, messageType = null, effectiveMaxACL = null) {
+async function executeQCLI(query, agentName, authorUsername, channel, messageDate, currentACL, isBatch = false, debug = false, agentUsername = null, replyContext = null, addressing = null, canReply = true, messageType = null, effectiveMaxACL = null, minACL = 1) {
   activeProcesses++;
 
   const isDM = channel.type === ChannelType.DM;
@@ -282,7 +282,7 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
     env.ZDS_AI_AGENT_RESPONSES_ACCEPTED = 'json, NO_RESPONSE, REACTION:';
     env.ZDS_AI_AGENT_RESPONSES_FORBIDDEN = 'text, markdown, yaml';
   } else {
-    const maxACL = getMaxACL(channel, debug);
+    const maxACL = getMaxACL(channel, debug, minACL);
     const limit = effectiveMaxACL ?? maxACL;
     env.ZDS_AI_AGENT_MESSAGE_AUTHOR = authorUsername;
     env.ZDS_AI_AGENT_MESSAGE_TIMESTAMP_UTC = messageDate.toISOString();
@@ -422,7 +422,7 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
   });
 }
 
-export async function processRealtimeMessage(message, channel, agentName, debug = false, noDiscord = false, messageType = null) {
+export async function processRealtimeMessage(message, channel, agentName, debug = false, noDiscord = false, messageType = null, minACL = 1) {
   // Circuit breaker - stop if failing repeatedly
   if (consecutiveFailures >= MAX_FAILURES) {
     log(`Circuit breaker: ${consecutiveFailures} failures, not trying`);
@@ -442,7 +442,7 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
 
     // Get current ACL from message and check against agent's max ACL
     const currentACL = getACL(message);
-    const maxACL = getMaxACL(channel, debug);
+    const maxACL = getMaxACL(channel, debug, minACL);
 
     // Check if this agent was mentioned, authored message/parent, or participated in thread
     const botUserId = message.client.user.id;
@@ -594,7 +594,8 @@ ${convertedContent}`;
       addressing,
       !noDiscord, // take into account ACL?
       messageType,
-      effectiveMaxACL
+      effectiveMaxACL,
+      minACL
     );
 
     // Log the ZAI-CLI response
@@ -645,7 +646,7 @@ ${convertedContent}`;
   }
 }
 
-export async function processBatchedMessages(messages, channel, agentName, debug = false, noDiscord = false) {
+export async function processBatchedMessages(messages, channel, agentName, debug = false, noDiscord = false, minACL = 1) {
   // Circuit breaker - stop if failing repeatedly
   if (consecutiveFailures >= MAX_FAILURES) {
     log(`Circuit breaker: ${consecutiveFailures} failures, not trying`);
@@ -669,7 +670,7 @@ export async function processBatchedMessages(messages, channel, agentName, debug
 
   try {
     // Get maxACL for this channel
-    const maxACL = getMaxACL(channel, debug);
+    const maxACL = getMaxACL(channel, debug, minACL);
 
     // Prepare message data
     const messageData = {
