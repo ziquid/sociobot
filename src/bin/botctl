@@ -215,16 +215,29 @@ start_single_bot() {
   declare -r CONFIG_FILE=$(grep '^ZDS_AI_AGENT_CONFIG_FILE=' <<< "$zai_output" | cut -d= -f2-)
 
   # Start with clean environment to prevent ZDS_AI_AGENT_* variable leakage
-  # Only pass through essential system and API key variables
+  # API credentials are collected dynamically by pattern — no hardcoded list to maintain
   # Run as agent user when in container to allow writing to agent's log directory
 
   if [[ "$DEBUG_FLAG" == --debug ]]; then
     log_message "🐛 Starting $BOT_NAME bot in DEBUG mode"
   fi
 
+  # Collect API provider credentials from the current environment.
+  # Pattern mirrors _ZAI_API_KEY_ENV_PATTERN in zai-chat.inc.zsh (^ZDS_AI_ branch
+  # excluded — those vars are forwarded explicitly below to avoid leaking agent state).
+  local -a api_env_args=()   # raw KEY=VALUE array (for direct env -i expansion)
+  local api_env_block=""     # shell-quoted string (for embedding in zsh -c "...")
+  while IFS= read -r line; do
+    local varname="${line%%=*}"
+    local varval="${line#*=}"
+    api_env_args+=("$line")
+    api_env_block+="${varname}=\"${varval//\"/\\\"}\" "
+  done < <(env | grep -E \
+    '^(ANTHROPIC|ARLIAI|CLAUDE_CODE|GEMINI|GITEA|GITHUB|GROK|MISTRAL|MORPH|NANOGPT|OLLAMA|OPENAI|OPENROUTER|PLANO|SYNTHETIC|TAVILY|VENICE)_')
+
   # Determine if we need to sudo (when running as different user than target bot)
   if bot_needs_sudo "$BOT_NAME"; then
-    # Run as agent user via sudo, passing through API keys and system vars
+    # Run as agent user via sudo, passing through API credentials and system vars
     local AGENT_HOME=~"$BOT_NAME"
     cd "$AGENT_HOME"
     sudo -u "$BOT_NAME" zsh -c "env -i \
@@ -232,28 +245,13 @@ start_single_bot() {
       HOME=\"$AGENT_HOME\" \
       LANG=\"${LANG:-en_US.UTF-8}\" \
       ${TZ:+TZ=\"$TZ\"} \
-      ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\" \
-      ARLIAI_API_KEY=\"$ARLIAI_API_KEY\" \
-      CLAUDE_CODE_OAUTH_TOKEN=\"$CLAUDE_CODE_OAUTH_TOKEN\" \
-      GEMINI_API_KEY=\"$GEMINI_API_KEY\" \
-      GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_PERSONAL_ACCESS_TOKEN\" \
-      GITHUB_TOKEN=\"$GITHUB_TOKEN\" \
-      GROK_API_KEY=\"$GROK_API_KEY\" \
-      MISTRAL_API_KEY=\"$MISTRAL_API_KEY\" \
-      MORPH_API_KEY=\"$MORPH_API_KEY\" \
-      NANOGPT_API_KEY=\"$NANOGPT_API_KEY\" \
-      OLLAMA_API_KEY=\"$OLLAMA_API_KEY\" \
-      OLLAMA_HOST=\"$OLLAMA_HOST\" \
-      OPENAI_API_KEY=\"$OPENAI_API_KEY\" \
-      OPENROUTER_API_KEY=\"$OPENROUTER_API_KEY\" \
-      PLANO_API_KEY=\"$PLANO_API_KEY\" \
-      SYNTHETIC_API_KEY=\"$SYNTHETIC_API_KEY\" \
-      VENICE_API_KEY=\"$VENICE_API_KEY\" \
+      $api_env_block \
       ZDS_AI_AGENT_CONFIG_FILE=\"$CONFIG_FILE\" \
       ZDS_AI_CLIENT_ID=\"$ZDS_AI_CLIENT_ID\" \
       ZDS_AI_FLASH_MODELS=\"$ZDS_AI_FLASH_MODELS\" \
       ZDS_AI_HOST_ID=\"$ZDS_AI_HOST_ID\" \
       ZDS_AI_IMAGE_ENDPOINT=\"$ZDS_AI_IMAGE_ENDPOINT\" \
+      ZDS_AI_PROVISION_TOKEN=\"$ZDS_AI_PROVISION_TOKEN\" \
       ZDS_AI_ROOT=\"$ZDS_AI_ROOT\" \
       ZDS_AI_TTS_ENDPOINT=\"$ZDS_AI_TTS_ENDPOINT\" \
       ZDS_AI_TTS_USER=\"$ZDS_AI_TTS_USER\" \
@@ -264,12 +262,17 @@ start_single_bot() {
     cd "$HOME"
     env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       ${TZ:+TZ="$TZ"} \
-      CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
-      OLLAMA_HOST="$OLLAMA_HOST" \
+      "${api_env_args[@]}" \
       ZDS_AI_AGENT_CONFIG_FILE="$CONFIG_FILE" \
-      ZDS_AI_TTS_ENDPOINT="$ZDS_AI_TTS_ENDPOINT" \
-      ZDS_AI_TTS_USER="$ZDS_AI_TTS_USER" \
-      ZDS_AI_TTS_PASS="$ZDS_AI_TTS_PASS" \
+      ZDS_AI_CLIENT_ID="${ZDS_AI_CLIENT_ID:-}" \
+      ZDS_AI_FLASH_MODELS="${ZDS_AI_FLASH_MODELS:-}" \
+      ZDS_AI_HOST_ID="${ZDS_AI_HOST_ID:-}" \
+      ZDS_AI_IMAGE_ENDPOINT="${ZDS_AI_IMAGE_ENDPOINT:-}" \
+      ZDS_AI_PROVISION_TOKEN="${ZDS_AI_PROVISION_TOKEN:-}" \
+      ZDS_AI_ROOT="${ZDS_AI_ROOT:-}" \
+      ZDS_AI_TTS_ENDPOINT="${ZDS_AI_TTS_ENDPOINT:-}" \
+      ZDS_AI_TTS_USER="${ZDS_AI_TTS_USER:-}" \
+      ZDS_AI_TTS_PASS="${ZDS_AI_TTS_PASS:-}" \
       nohup sociobot "$BOT_NAME" $DEBUG_FLAG >> "$LOG_FILE" 2>&1 &
   fi
 
