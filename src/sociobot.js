@@ -50,7 +50,7 @@ import { Client, Events, GatewayIntentBits, ChannelType, Partials } from "discor
 import { loadLastProcessedMessages, saveLastProcessedMessage } from "./lib/persistence.js";
 import { processBatchedMessages, processRealtimeMessage, log, encodeSpeech } from "./lib/qcli.js";
 import { setupErrorHandlers } from "./lib/error-handlers.js";
-import { sendLongMessage, stripThinkTags } from "./lib/message-utils.js";
+import { sendLongMessage, cleanContent } from "./lib/message-utils.js";
 // import { getACL, getMaxACL, addResponseGuidance } from "./lib/metadata.js";
 import { BOT_DMS_CHANNEL_ID } from "./lib/metadata.js";
 import {
@@ -214,7 +214,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
     for (const response of responses) {
       const message = messageMap.get(response.messageId);
       if (message && response.response) {
-        let responseText = stripThinkTags(response.response).trim();
+        let responseText = cleanContent(response.response);
         const aclLimited = response.aclLimited || false;
 
         // Check for NO_RESPONSE or '.' directives, or noise phrases
@@ -428,7 +428,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
         for (const response of responses) {
           const message = messageMap.get(response.messageId);
           if (message && response.response) {
-            let responseText = stripThinkTags(response.response).trim();
+            let responseText = cleanContent(response.response);
 
             // Check for NO_RESPONSE or '.' directive, or noise phrases
             if (responseText.startsWith('NO_RESPONSE') || responseText === '.' ||
@@ -859,7 +859,7 @@ async function handleRealtimeMessage(message) {
       const result = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD, null, message.channel.id === BOT_DMS_CHANNEL_ID ? 4 : 1);
 
       if (result && !NO_DISCORD) {
-        let responseText = stripThinkTags(typeof result === 'string' ? result : result.response).trim();
+        let responseText = cleanContent(typeof result === 'string' ? result : result.response);
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
         const aclLimited = typeof result === 'object' ? result.aclLimited : false;
 
