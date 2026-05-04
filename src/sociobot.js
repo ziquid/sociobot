@@ -859,7 +859,14 @@ async function handleRealtimeMessage(message) {
       const result = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD, null, message.channel.id === BOT_DMS_CHANNEL_ID ? 4 : 1);
 
       if (result && !NO_DISCORD) {
-        let responseText = cleanContent(typeof result === 'string' ? result : result.response);
+        let responseText;
+        try {
+          responseText = cleanContent(typeof result === 'string' ? result : result.response);
+        } catch (error) {
+          log(`cleanContent error for message ${message.id}: ${error.message}`);
+          saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
+          return;
+        }
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
         const aclLimited = typeof result === 'object' ? result.aclLimited : false;
 
