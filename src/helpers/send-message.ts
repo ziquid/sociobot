@@ -115,7 +115,7 @@ client.once('clientReady', async () => {
       const botUsername = client.user?.username || 'Bot';
       const botAvatarURL = client.user?.displayAvatarURL();
 
-      await sendWebhookMessage(webhook, messageText, 1, botUsername, botAvatarURL);
+      await sendWebhookMessage(webhook, messageText, 1, botUsername, botAvatarURL, true);
 
       console.log(`Webhook message sent successfully`);
       process.exit(0);
@@ -151,7 +151,7 @@ client.once('clientReady', async () => {
     }
 
     if (targetChannel && message) {
-      await sendChannelMessage(targetChannel, message, 1);
+      await sendChannelMessage(targetChannel, message, 1, true);
       console.log(`Message sent successfully`);
     }
 

@@ -8,13 +8,26 @@ import { createFooter, getACL, getMaxACL, hasParticipatedInThread, wasMentionedI
 
 /** @constant {number} Maximum characters allowed in a Discord message */
 const DISCORD_MESSAGE_LIMIT = 2000;
+const DISCORD_CHUNKED_MESSAGE_LIMIT = DISCORD_MESSAGE_LIMIT * 4.5;
+
+/**
+ * Clean message content by stripping <think> tags and keeping only <response> content
+ * @param content
+ * @returns {string}
+ * @throws {Error} If no response tags found and noResponseOk is false
+ * @example
+ * const clean = cleanContent('<think>ignore this</think><response>only this</response>');
+ */
+export function cleanContent(content, noResponseOk = false) {
+  return keepResponseTags(stripThinkTags(content), noResponseOk);
+}
 
 /**
  * Strip <think></think> tags and their content from a message
  * @param {string} content - The message content to clean
  * @returns {string} Message with think tags removed
  */
-export function stripThinkTags(content) {
+function stripThinkTags(content) {
   // Remove <think>...</think> tags and their content (non-greedy match)
   // This handles both single-line and multi-line think blocks
   let result = content.replace(/<think>[\s\S]*?<\/think>/gi, '');
@@ -30,9 +43,44 @@ export function stripThinkTags(content) {
 }
 
 /**
+ * Keep only content inside <response> tags
+ * @param {string} content - The message content to filter
+ * @param {boolean} noResponseOk - If true, return original content if no response tags found
+ * @returns {string} Content inside response tags only
+ * @throws {Error} If no response tags found and noResponseOk is false
+ * @example
+ * const responseOnly = keepResponseTags('ignore this<response>only this</response>', false);
+ */
+function keepResponseTags(content, noResponseOk = false) {
+  // No response tags found?  throw an error if required, otherwise process content
+  if (!noResponseOk && !/<response>/i.test(content)) {
+    throw new Error(`No <response> tags found`);
+  }
+
+  // Extract all content between <response>...</response> tags
+  const matches = [];
+  const re = /<response>([\s\S]*?)<\/response>/gi;
+  let match;
+  while ((match = re.exec(content)) !== null) {
+    matches.push(match[1]);
+  }
+
+  // Handle malformed cases: opening tag without closing tag and closing tag without opening tag
+  if (!matches.length) {
+    const openMatch = content.match(/<response>([\s\S]*)/i);
+    if (openMatch) matches.push(openMatch[1]);
+    const closeMatch = content.match(/([\s\S]*)<\/response>/i);
+    if (closeMatch) matches.push(closeMatch[1]);
+  }
+
+  return matches.length ? matches.join('\n\n').trim() : content.trim();
+}
+
+/**
  * Split a long message into chunks that fit within Discord's character limit
  * @param {string} content - The message content to split
  * @returns {string[]} Array of message chunks, each under the Discord limit
+ * @throws {Error} if message exceeds DISCORD_CHUNKED_MESSAGE_LIMIT
  * @example
  * const chunks = splitMessage(longText);
  * chunks.forEach((chunk, i) => console.log(`Chunk ${i + 1}: ${chunk}`));
@@ -40,6 +88,10 @@ export function stripThinkTags(content) {
 export function splitMessage(content) {
   if (content.length <= DISCORD_MESSAGE_LIMIT) {
     return [content];
+  }
+
+  if (content.length > DISCORD_CHUNKED_MESSAGE_LIMIT) {
+    throw new Error(`Message too long (${content.length} chars)`);
   }
 
   const chunks = [];
@@ -93,10 +145,16 @@ export function splitMessage(content) {
  * @param {boolean} debug - Enable debug logging
  * @param {string|null} audioPath - Optional path to audio file to attach to first message
  * @returns {Promise<void>}
+ * @throws {Error} if failed to send message or ACL limit exceeded
+ * @example
+ * await sendLongMessage(message, 'Very long response...', true, '/path/to/audio.mp3');
  */
 export async function sendLongMessage(message, content, debug = false, audioPath = null, agentName = null) {
-  // Strip <think></think> tags before processing
-  const cleanedContent = stripThinkTags(content);
+  // Extract and clean the content
+  const cleanedContent = cleanContent(content);
+  if (!cleanedContent) {
+    throw new Error('No content to send');
+  }
 
   // Calculate ACL for this response
   const acl = getACL(message);
@@ -121,8 +179,8 @@ export async function sendLongMessage(message, content, debug = false, audioPath
   }
 
   // Block sending if ACL would exceed maximum
-  if (acl >= effectiveMaxACL) {
-    throw new Error(`ACL limit reached (${effectiveMaxACL})`);
+  if (acl > effectiveMaxACL) {
+    throw new Error(`ACL limit reached (${acl} > ${effectiveMaxACL})`);
   }
 
   const chunks = splitMessage(cleanedContent);
@@ -162,11 +220,15 @@ export async function sendLongMessage(message, content, debug = false, audioPath
  * @param {Object} channel - Discord channel object to send to
  * @param {string} content - The message content to send
  * @param {number} acl -- ACL value to use (default: 1)
+ * @param {boolean} noResponseOk -- If true, don't require <response> tags
  * @returns {Promise<void>}
+ * @throws {Error} if failed to send channel message
+ * @example
+ * await sendChannelMessage(channel, 'Hello world', 2);
  */
-export async function sendChannelMessage(channel, content, acl = 1) {
+export async function sendChannelMessage(channel, content, acl = 1, noResponseOk = false) {
   // Strip <think></think> tags before processing
-  const cleanedContent = stripThinkTags(content);
+  const cleanedContent = cleanContent(content, noResponseOk);
   const chunks = splitMessage(cleanedContent);
 
   for (let i = 0; i < chunks.length; i++) {
@@ -191,11 +253,15 @@ export async function sendChannelMessage(channel, content, acl = 1) {
  * @param {number} acl -- ACL value to use (default: 1)
  * @param {string|null} username -- Optional username to display
  * @param {string|null} avatarURL -- Optional avatar URL to display (shows headshot)
+ * @param {boolean} noResponseOk -- If true, don't require <response> tags
  * @returns {Promise<void>}
+ * @throws {Error} if failed to send webhook message
+ * @example
+ * await sendWebhookMessage(webhook, 'Hello world', 2, 'Aiden', 'https://example.com/avatar.png');
  */
-export async function sendWebhookMessage(webhook, content, acl = 1, username = null, avatarURL = null) {
+export async function sendWebhookMessage(webhook, content, acl = 1, username = null, avatarURL = null, noResponseOk = false) {
   // Strip <think></think> tags before processing
-  const cleanedContent = stripThinkTags(content);
+  const cleanedContent = cleanContent(content, noResponseOk);
   const chunks = splitMessage(cleanedContent);
 
   for (let i = 0; i < chunks.length; i++) {

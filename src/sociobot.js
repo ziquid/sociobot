@@ -52,6 +52,7 @@ import { processBatchedMessages, processRealtimeMessage, log, encodeSpeech } fro
 import { setupErrorHandlers } from "./lib/error-handlers.js";
 import { sendLongMessage, stripThinkTags } from "./lib/message-utils.js";
 // import { getACL, getMaxACL, addResponseGuidance } from "./lib/metadata.js";
+import { BOT_DMS_CHANNEL_ID } from "./lib/metadata.js";
 import {
   isOwnBotMessage,
   isAfterCutoff,
@@ -68,7 +69,6 @@ import { checkLoadAverage } from "./lib/system-utils.js";
 const DISCORD_TOKEN = config.discord.token;
 const AGENT_NAME = agentName;
 const BOT_MESSAGE_DELAY = config.messageDelay;
-const BOT_DMS_CHANNEL_ID = '1418032549430558782'; // Special channel for bot-to-bot communication
 
 // Message send decision constants
 const MESSAGE_DONT_SEND = 'MESSAGE_DONT_SEND';

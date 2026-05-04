@@ -10,18 +10,27 @@ const ACL_REACTIONS_ONLY_MESSAGE = "\n\nNote: You are at the ACL limit.  You may
 /**
  * Load server configuration
  * @param {string} guildId - Guild ID
+ * @param {boolean} debug - Enable debug logging
  * @returns {Object|null} Server config or null
  */
-function loadServerConfig(guildId) {
+function loadServerConfig(guildId, debug = false) {
   const zdsAiRoot = process.env.ZDS_AI_ROOT || '/usr/local/share/zds-ai';
   const configPath = join(zdsAiRoot, 'data', 'sociobot', 'servers', `${guildId}.json`);
-  if (!existsSync(configPath)) return null;
+  if (!existsSync(configPath)) {
+    if (debug) console.log(`Server config not found: ${configPath}`);
+    return null;
+  }
   try {
     return JSON.parse(readFileSync(configPath, 'utf8'));
   } catch (error) {
     return null;
   }
 }
+
+const DEFAULT_MAX_ACL = 2;
+const BOT_DMS_MAX_ACL = 4;
+const DM_MAX_ACL = 2;
+export const BOT_DMS_CHANNEL_ID = '1418032549430558782'; // TODO: move to per-server config
 
 /**
  * Calculate maximum ACL based on number of ZDS bots in channel
@@ -31,13 +40,19 @@ function loadServerConfig(guildId) {
  * @returns {number} Maximum ACL allowed
  */
 export function getMaxACL(channel, debug = false, minACL = 1) {
+  // Not a guild channel (DMs or other non-guild channel)
   if (!channel.guild) {
-    return 2;
+    // bot-dms channel?  return 4 if so, otherwise default to 2
+    if (channel.id === BOT_DMS_CHANNEL_ID) {
+      if (debug) console.log(`In bot-dms channel, setting max ACL to 4`);
+      return BOT_DMS_MAX_ACL;
+    }
+    return DM_MAX_ACL;
   }
 
-  const serverConfig = loadServerConfig(channel.guild.id);
+  const serverConfig = loadServerConfig(channel.guild.id, debug);
   if (!serverConfig?.zdsAiAgentsRoleId) {
-    return 2;
+    return DEFAULT_MAX_ACL;
   }
 
   const zdsBotCount = channel.guild.members.cache.filter(member => {
