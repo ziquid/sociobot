@@ -16,12 +16,7 @@ const target = process.argv[2];
 const userId = process.argv[3];
 const messageText = process.argv[4];
 
-if (!agentHandle) {
-  console.error('Error: ZDS_AI_AGENT_HANDLE environment variable not set');
-  process.exit(1);
-}
-
-if (!target) {
+if (!target || target === '-h' || target === '--help') {
   console.error('Usage: sb-send-message <channel-id-or-name> "message"');
   console.error('   OR: sb-send-message dm <user-id> "message"');
   console.error('   OR: sb-send-message webhook <channel-id-or-name> "message"');
@@ -36,6 +31,11 @@ if (!target) {
   console.error('  sb-send-message bot-testing 1234567890123456789 "REACTION:👍"');
   console.error('');
   console.error('Note: Agent handle is read from ZDS_AI_AGENT_HANDLE environment variable');
+  process.exit(1);
+}
+
+if (!agentHandle) {
+  console.error('Error: ZDS_AI_AGENT_HANDLE environment variable not set');
   process.exit(1);
 }
 
