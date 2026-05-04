@@ -214,7 +214,7 @@ async function processChannelMessages(channel, lastProcessedId, readyClient) {
     for (const response of responses) {
       const message = messageMap.get(response.messageId);
       if (message && response.response) {
-        let responseText = cleanContent(response.response);
+        let responseText = response.response;
         const aclLimited = response.aclLimited || false;
 
         // Check for NO_RESPONSE or '.' directives, or noise phrases
@@ -428,7 +428,7 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
         for (const response of responses) {
           const message = messageMap.get(response.messageId);
           if (message && response.response) {
-            let responseText = cleanContent(response.response);
+            let responseText = response.response;
 
             // Check for NO_RESPONSE or '.' directive, or noise phrases
             if (responseText.startsWith('NO_RESPONSE') || responseText === '.' ||
@@ -859,14 +859,7 @@ async function handleRealtimeMessage(message) {
       const result = await processRealtimeMessage(message, message.channel, AGENT_NAME, DEBUG, NO_DISCORD, null, message.channel.id === BOT_DMS_CHANNEL_ID ? 4 : 1);
 
       if (result && !NO_DISCORD) {
-        let responseText;
-        try {
-          responseText = cleanContent(typeof result === 'string' ? result : result.response);
-        } catch (error) {
-          log(`cleanContent error for message ${message.id}: ${error.message}`);
-          saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
-          return;
-        }
+        let responseText = typeof result === 'string' ? result : result.response;
         const hadTranscription = typeof result === 'object' ? result.hadTranscription : false;
         const aclLimited = typeof result === 'object' ? result.aclLimited : false;
 
