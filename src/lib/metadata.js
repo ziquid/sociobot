@@ -6,6 +6,7 @@ import { join } from 'path';
 const FOOTER_SIGNATURE = "Sent by a ZDS AI Agent • zds-agents.com";
 const ACL_NO_RESPONSE_MESSAGE = "\n\nFor your information only.  Replies to this message will not be processed.";
 const ACL_REACTIONS_ONLY_MESSAGE = "\n\nNote: You are at the ACL limit.  You may only respond with a REACTION (e.g., REACTION:eyes) to acknowledge this message.  Text responses will be blocked.";
+const RESPONSE_TAG_GUIDANCE = "\n\nIMPORTANT: Wrap your Discord response text in <response> tags.  Only content inside <response>...</response> will be delivered to Discord.  Content outside these tags (thinking, reasoning, tool use) will be stripped.  Example: <response>Hello!</response>";
 
 /**
  * Load server configuration
@@ -248,10 +249,10 @@ export function addResponseGuidance(query, currentACL, maxACL, debug = false, ha
     if (debug) {
       console.log(`Agent ${reason} in thread, has ${reason === 'mentioned' || reason === 'author' || reason === 'everyone' ? 'tripled' : 'doubled'} ACL limit: ${effectiveMaxACL}`);
     }
-    return query + message;
+    return query + message + RESPONSE_TAG_GUIDANCE;
   }
 
-  return query;
+  return query + RESPONSE_TAG_GUIDANCE;
 }
 
 /**
