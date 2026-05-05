@@ -35,7 +35,7 @@ function encodeToAudio(text: string): string | null {
 }
 
 if (!target || target === '-h' || target === '--help') {
-  console.error('Usage: sb-send-message <channel-id-or-name> "message"');
+  console.error('Usage: sb-send-message [--encode] <channel-id-or-name> "message"');
   console.error('   OR: sb-send-message dm <user-id> "message"');
   console.error('   OR: sb-send-message webhook <channel-id-or-name> "message"');
   console.error('   OR: sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"');
@@ -169,7 +169,21 @@ client.once('clientReady', async () => {
     }
 
     if (targetChannel && message) {
-      await sendChannelMessage(targetChannel, message, 1, true);
+      let audioPath: string | null = null;
+      const channelId = 'id' in targetChannel ? targetChannel.id : null;
+      if (ENCODE_FLAG && channelId !== BOT_DMS_CHANNEL_ID) {
+        audioPath = encodeToAudio(message);
+        if (!audioPath) {
+          console.error('Warning: audio encoding failed, sending text only');
+        }
+      }
+      try {
+        await sendChannelMessage(targetChannel, message, 1, true, audioPath);
+      } finally {
+        if (audioPath) {
+          try { unlinkSync(audioPath); } catch {}
+        }
+      }
       console.log(`Message sent successfully`);
     }
 
