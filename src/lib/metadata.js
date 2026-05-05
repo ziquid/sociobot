@@ -175,9 +175,9 @@ export function wasMentionedInMessage(message, botUserId, agentName) {
     return true;
   }
 
-  // Check for name mention in message content (case-insensitive)
-  const content = message.content.toLowerCase();
-  const agentNameLower = agentName.toLowerCase();
+  // Check for name mention in message content (case-insensitive, Unicode-normalized)
+  const content = message.content.normalize('NFC').toLowerCase();
+  const agentNameLower = agentName.normalize('NFC').toLowerCase();
 
   // Check for agent name or group words as a whole word (not part of another word)
   // Use word boundary regex to avoid matching "maiden" when looking for "aiden"
