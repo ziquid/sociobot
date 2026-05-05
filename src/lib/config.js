@@ -92,6 +92,9 @@ export function getConfig(agentName) {
   // Build normalized config with defaults
   const config = {
     maxAcl: sb.max_acl,  // undefined if not set
+    ownedChannels: Array.isArray(sb.owned_channels)
+      ? sb.owned_channels.map(String)
+      : (sb.owned_channels || '').toString().split(',').map(s => s.trim()).filter(Boolean),
     messageDelay: sb.message_delay || 17000,
     discord: {
       token: sb.discord?.token,
