@@ -226,9 +226,8 @@ export async function sendLongMessage(message, content, debug = false, audioPath
  * @example
  * await sendChannelMessage(channel, 'Hello world', 2);
  */
-export async function sendChannelMessage(channel, content, acl = 1, noResponseOk = false) {
-  // Strip <think></think> tags before processing
-  const cleanedContent = cleanContent(content, noResponseOk);
+export async function sendChannelMessage(channel, content, acl = 1, noResponseOk = false, audioPath = null) {
+  const cleanedContent = convertMentions(cleanContent(content, noResponseOk));
   const chunks = splitMessage(cleanedContent);
 
   for (let i = 0; i < chunks.length; i++) {
@@ -239,10 +238,13 @@ export async function sendChannelMessage(channel, content, acl = 1, noResponseOk
       .setDescription('\u200B')
       .setFooter({ text: createFooter(acl) });
 
-    await channel.send({
+    const messageOptions = {
       content: prefix + chunk,
-      embeds: [embed]
-    });
+      embeds: [embed],
+      ...(i === 0 && audioPath ? { files: [{ attachment: audioPath }] } : {})
+    };
+
+    await channel.send(messageOptions);
   }
 }
 
