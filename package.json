@@ -6,9 +6,11 @@
   "type": "module",
   "bin": {
     "botctl": "src/bin/botctl",
+    "sb-add-channel-member": "dist/helpers/add-channel-member.js",
     "sb-create-webhooks": "dist/helpers/create-webhooks.js",
     "sb-download-channel-history": "dist/helpers/download-channel-history.js",
     "sb-list-channels": "dist/helpers/list-channels.js",
+    "sb-remove-channel-member": "dist/helpers/remove-channel-member.js",
     "sb-send-message": "dist/helpers/send-message.js",
     "sociobot": "src/sociobot.js"
   },
