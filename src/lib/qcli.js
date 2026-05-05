@@ -5,7 +5,7 @@ import { join } from "path";
 import { ChannelType } from "discord.js";
 import https from "https";
 import http from "http";
-import { getACL, getMaxACL, isChannelOwner, OWNER_MAX_ACL, addResponseGuidance, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor } from "./metadata.js";
+import { getACL, getMaxACL, isChannelOwner, OWNER_MAX_ACL, addResponseGuidance, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor, BOT_DMS_CHANNEL_ID } from "./metadata.js";
 
 /**
  * Expand tilde in path to home directory
@@ -454,11 +454,17 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
     const isAuthor = await isMessageAuthor(message, botUserId);
     const hasParticipated = await hasParticipatedInThread(message, botUserId);
 
-    // Calculate effective ACL limit: channel owner (unlimited) > mentioned/author/@everyone (3x) > participated (2x) > normal (1x)
+    // Implicit addressing: bot-dms (human sender) or two-participant channel means the message is implicitly for us
+    const isImplicitlyAddressed = !wasMentioned && !mentionsEveryone && (
+      (channel.id === BOT_DMS_CHANNEL_ID && !message.author.bot) ||
+      (channel.members?.size === 2)
+    );
+
+    // Calculate effective ACL limit: channel owner (unlimited) > mentioned/author/@everyone/implicit (3x) > participated (2x) > normal (1x)
     let effectiveMaxACL = maxACL;
     if (isChannelOwner(channel.id)) {
       effectiveMaxACL = OWNER_MAX_ACL;
-    } else if (wasMentioned || isAuthor || mentionsEveryone) {
+    } else if (wasMentioned || isAuthor || mentionsEveryone || isImplicitlyAddressed) {
       effectiveMaxACL = maxACL * 3;
     } else if (hasParticipated) {
       effectiveMaxACL = maxACL * 2;
@@ -567,7 +573,7 @@ ${convertedContent}`;
     });
 
     // Add response guidance based on ACL state, mentions, authorship, thread participation, noDiscord
-    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned, isAuthor, noDiscord, mentionsEveryone);
+    query = addResponseGuidance(query, currentACL, maxACL, debug, hasParticipated, wasMentioned || isImplicitlyAddressed, isAuthor, noDiscord, mentionsEveryone);
 
     if (debug) {
       console.log('=== REALTIME QUERY ===')
@@ -576,7 +582,7 @@ ${convertedContent}`;
 
     // Minimal addressing signal for the agent (derived from existing booleans)
     const addressing = [
-      wasMentioned ? 'mentioned' : null,
+      (wasMentioned || isImplicitlyAddressed) ? 'mentioned' : null,
       mentionsEveryone ? 'everyone' : null,
       isAuthor ? 'author' : null,
       hasParticipated ? 'participated' : null
