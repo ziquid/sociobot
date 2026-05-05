@@ -5,7 +5,7 @@
  * Usage: list-channel-members <channel-id-or-name>
  */
 
-import { Client, Events, GatewayIntentBits, ChannelType, GuildMember, TextChannel, VoiceChannel, CategoryChannel } from 'discord.js';
+import { Client, Events, GatewayIntentBits, ChannelType, GuildMember, TextChannel, VoiceChannel } from 'discord.js';
 import { getConfig } from '../lib/config.js';
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
