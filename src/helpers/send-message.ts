@@ -1,20 +1,38 @@
 #!/usr/bin/env bun
 
+import { execSync } from 'child_process';
+import { writeFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { Client, GatewayIntentBits, TextChannel, DMChannel, User } from 'discord.js';
 import { getConfig } from '../lib/config.js';
 import { sendChannelMessage, sendWebhookMessage } from '../lib/message-utils.js';
 import { resolveEmoji } from '../lib/emoji-map.js';
 
-// Usage: sb-send-message <channel-id-or-name> "message text"
-// Usage: sb-send-message dm <user-id> "message text"
-// Usage: sb-send-message webhook <channel-id-or-name> "message text"
-// Usage: sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"
-// Agent handle is read from ZDS_AI_AGENT_HANDLE environment variable
+const BOT_DMS_CHANNEL_ID = '1418032549430558782';
+
+const ENCODE_FLAG = process.argv.includes('--encode');
+const positionalArgs = process.argv.slice(2).filter(a => a !== '--encode');
 
 const agentHandle = process.env.ZDS_AI_AGENT_HANDLE;
-const target = process.argv[2];
-const userId = process.argv[3];
-const messageText = process.argv[4];
+const target = positionalArgs[0];
+const userId = positionalArgs[1];
+const messageText = positionalArgs[2];
+
+function encodeToAudio(text: string): string | null {
+  try {
+    const output = execSync('encode-speech.sh --try-video -', {
+      input: text,
+      timeout: 90000,
+      maxBuffer: 50 * 1024 * 1024
+    });
+    const tmpPath = join(tmpdir(), `sb-encode-${Date.now()}.mp4`);
+    writeFileSync(tmpPath, output);
+    return tmpPath;
+  } catch {
+    return null;
+  }
+}
 
 if (!target || target === '-h' || target === '--help') {
   console.error('Usage: sb-send-message <channel-id-or-name> "message"');
