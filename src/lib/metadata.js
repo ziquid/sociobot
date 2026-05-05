@@ -39,7 +39,7 @@ export const BOT_DMS_CHANNEL_ID = '1418032549430558782'; // TODO: move to per-se
  * @param {string} channelId - Discord channel ID
  * @returns {boolean}
  */
-function isChannelOwner(channelId) {
+export function isChannelOwner(channelId) {
   const owned = (process.env.OWNED_CHANNELS || '').split(',').map(s => s.trim()).filter(Boolean);
   return owned.includes(channelId);
 }
