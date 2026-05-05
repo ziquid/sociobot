@@ -38,8 +38,9 @@ export function hasValidAgentRecipient(message) {
 
 /**
  * Create a filter function to check if a bot-dms message is relevant to this bot.
- * Human messages are always relevant.  Bot messages are only relevant if they @mention
- * this bot or name it via wasMentionedInMessage().
+ * Messages without a valid agent recipient header (bot @mention) are always dropped.
+ * Human messages with a valid header are always relevant.  Bot messages with a valid
+ * header are relevant only if they @mention this bot or name it via wasMentionedInMessage().
  * @param {string} botUserId - The bot's user ID
  * @param {string} agentName - Agent name (required)
  * @returns {Function} Filter function that returns true if message is relevant
@@ -53,6 +54,7 @@ export const isBotDMsRelevant = (botUserId, agentName) => {
   }
   return (msg) => {
     if (msg.author.id === botUserId) return false;
+    if (!hasValidAgentRecipient(msg)) return false;
     if (!msg.author.bot) return true;
     if (msg.mentions.users?.has(botUserId)) return true;
     if (wasMentionedInMessage(msg, botUserId, agentName)) return true;
