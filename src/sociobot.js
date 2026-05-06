@@ -62,6 +62,7 @@ import {
   isOwnBotMessage,
   isAfterCutoff,
   isBotDMsRelevant,
+  hasValidAgentRecipient,
   isSuppressedMessageContent,
   isErrorResponse,
   handleErrorResponse,
@@ -402,7 +403,23 @@ async function checkBotDMsChannel(readyClient, lastMessages) {
 
     debugBotDMsRouting(messageArray, readyClient.user.id, DEBUG, log, AGENT_NAME);
 
-    for (const message of messageArray.filter(isBotDMsRelevant(readyClient.user.id, AGENT_NAME))) {
+    // Reject bot messages that lack a valid agent recipient in the header
+    const validMessageArray = [];
+    for (const message of messageArray) {
+      if (!hasValidAgentRecipient(message)) {
+        log(`bot-dms: blocking message ${message.id} from ${message.author.username} -- no valid agent recipient`);
+        try {
+          await message.react('❌');
+        } catch (error) {
+          log(`bot-dms: could not react to invalid message ${message.id}: ${error.message}`);
+        }
+        saveLastProcessedMessage(AGENT_NAME, BOT_DMS_CHANNEL_ID, message.id);
+        continue;
+      }
+      validMessageArray.push(message);
+    }
+
+    for (const message of validMessageArray.filter(isBotDMsRelevant(readyClient.user.id, AGENT_NAME))) {
       // Check if it's a reply to our message
       if (message.reference?.messageId) {
         try {
@@ -808,6 +825,17 @@ async function handleRealtimeMessage(message) {
   if (circuitBreakerState.consecutiveFailures >= MAX_FAILURES) {
     log(`Circuit breaker: ${circuitBreakerState.consecutiveFailures} failures, exiting`);
     process.exit(1);
+  }
+
+  // Special handling for bot-dms channel: reject bot messages with no valid agent recipient
+  if (message.channel.id === BOT_DMS_CHANNEL_ID && !hasValidAgentRecipient(message)) {
+    log(`ROUTING: bot-dms message ${message.id} from ${message.author.username} blocked -- no valid agent recipient`);
+    try {
+      await message.react('❌');
+    } catch (error) {
+      log(`ROUTING: could not react to invalid bot-dms message ${message.id}: ${error.message}`);
+    }
+    return;
   }
 
   // Special handling for bot-dms channel: ignore bot messages not addressed to us, pass human messages through

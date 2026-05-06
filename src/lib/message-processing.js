@@ -25,9 +25,22 @@ export const isOwnBotMessage = (botUserId) => (msg) => msg.author.id === botUser
 export const isAfterCutoff = (cutoffId) => (msg) => !cutoffId || msg.id > cutoffId;
 
 /**
+ * Check if a bot-dms message from a bot has a valid agent recipient.
+ * Human messages are always valid.  Bot messages must @mention at least one bot user,
+ * which serves as the explicit agent recipient in the message header.
+ * @param {Object} message - Discord message object
+ * @returns {boolean} True if message has a valid agent recipient (or is from a human)
+ */
+export function hasValidAgentRecipient(message) {
+  if (!message.author.bot) return true;
+  return message.mentions.users.some(user => user.bot);
+}
+
+/**
  * Create a filter function to check if a bot-dms message is relevant to this bot.
- * Human messages are always relevant.  Bot messages are only relevant if they @mention
- * this bot or name it via wasMentionedInMessage().
+ * Messages without a valid agent recipient header (bot @mention) are always dropped.
+ * Human messages with a valid header are always relevant.  Bot messages with a valid
+ * header are relevant only if they @mention this bot or name it via wasMentionedInMessage().
  * @param {string} botUserId - The bot's user ID
  * @param {string} agentName - Agent name (required)
  * @returns {Function} Filter function that returns true if message is relevant
@@ -41,6 +54,7 @@ export const isBotDMsRelevant = (botUserId, agentName) => {
   }
   return (msg) => {
     if (msg.author.id === botUserId) return false;
+    if (!hasValidAgentRecipient(msg)) return false;
     if (!msg.author.bot) return true;
     if (msg.mentions.users?.has(botUserId)) return true;
     if (wasMentionedInMessage(msg, botUserId, agentName)) return true;
