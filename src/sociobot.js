@@ -39,6 +39,11 @@ if (config.maxAcl !== undefined) {
   process.env.MAX_ACL = String(config.maxAcl);
 }
 
+// Set OWNED_CHANNELS environment variable for metadata.js compatibility
+if (config.ownedChannels.length > 0) {
+  process.env.OWNED_CHANNELS = config.ownedChannels.join(',');
+}
+
 // Validate configuration
 import { validEnvironment } from "./lib/validation.js";
 if (!validEnvironment(agentName)) {

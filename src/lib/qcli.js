@@ -5,7 +5,7 @@ import { join } from "path";
 import { ChannelType } from "discord.js";
 import https from "https";
 import http from "http";
-import { getACL, getMaxACL, addResponseGuidance, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor } from "./metadata.js";
+import { getACL, getMaxACL, isChannelOwner, OWNER_MAX_ACL, addResponseGuidance, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor } from "./metadata.js";
 
 /**
  * Expand tilde in path to home directory
@@ -454,9 +454,11 @@ export async function processRealtimeMessage(message, channel, agentName, debug 
     const isAuthor = await isMessageAuthor(message, botUserId);
     const hasParticipated = await hasParticipatedInThread(message, botUserId);
 
-    // Calculate effective ACL limit: mentioned OR author OR @everyone (3x) > participated (2x) > normal (1x)
+    // Calculate effective ACL limit: channel owner (unlimited) > mentioned/author/@everyone (3x) > participated (2x) > normal (1x)
     let effectiveMaxACL = maxACL;
-    if (wasMentioned || isAuthor || mentionsEveryone) {
+    if (isChannelOwner(channel.id)) {
+      effectiveMaxACL = OWNER_MAX_ACL;
+    } else if (wasMentioned || isAuthor || mentionsEveryone) {
       effectiveMaxACL = maxACL * 3;
     } else if (hasParticipated) {
       effectiveMaxACL = maxACL * 2;
@@ -669,8 +671,10 @@ export async function processBatchedMessages(messages, channel, agentName, debug
   const outputFile = join(tempDir, 'responses.json');
 
   try {
-    // Get maxACL for this channel
-    const maxACL = getMaxACL(channel, debug, minACL);
+    // Get maxACL for this channel; channel owners are not subject to ACL limits
+    const maxACL = isChannelOwner(channel.id)
+      ? OWNER_MAX_ACL
+      : getMaxACL(channel, debug, minACL);
 
     // Prepare message data
     const messageData = {

@@ -31,7 +31,18 @@ function loadServerConfig(guildId, debug = false) {
 const DEFAULT_MAX_ACL = 2;
 const BOT_DMS_MAX_ACL = 4;
 const DM_MAX_ACL = 2;
+export const OWNER_MAX_ACL = 999;
 export const BOT_DMS_CHANNEL_ID = '1418032549430558782'; // TODO: move to per-server config
+
+/**
+ * Check if this agent owns the given channel (OWNED_CHANNELS env var, comma-separated IDs)
+ * @param {string} channelId - Discord channel ID
+ * @returns {boolean}
+ */
+export function isChannelOwner(channelId) {
+  const owned = (process.env.OWNED_CHANNELS || '').split(',').map(s => s.trim()).filter(Boolean);
+  return owned.includes(channelId);
+}
 
 /**
  * Calculate maximum ACL based on number of ZDS bots in channel
@@ -41,6 +52,12 @@ export const BOT_DMS_CHANNEL_ID = '1418032549430558782'; // TODO: move to per-se
  * @returns {number} Maximum ACL allowed
  */
 export function getMaxACL(channel, debug = false, minACL = 1) {
+  // Channel owners have no ACL restrictions on their owned channels
+  if (isChannelOwner(channel.id)) {
+    if (debug) console.log(`Agent owns channel ${channel.id}, ACL unrestricted (${OWNER_MAX_ACL})`);
+    return OWNER_MAX_ACL;
+  }
+
   // Not a guild channel (DMs or other non-guild channel)
   if (!channel.guild) {
     // bot-dms channel?  return 4 if so, otherwise default to 2
