@@ -346,6 +346,26 @@ async function getDMChannels(readyClient) {
     }
   }
 
+  // Open DM channels for pre-configured user IDs (proactive discovery for known users)
+  const knownDMUsers = config.discord.dmUserIds;
+  if (knownDMUsers.length > 0) {
+    if (DEBUG) log(`Configuration DM user IDs: ${knownDMUsers.join(', ')}`);
+    for (const userId of knownDMUsers) {
+      try {
+        const user = await readyClient.users.fetch(userId);
+        const channel = await user.createDM();
+        if (!dmChannels.has(channel.id)) {
+          dmChannels.set(channel.id, channel);
+          if (DEBUG) log(`Opened DM channel ${channel.id} for user ${user.tag}`);
+        } else {
+          if (DEBUG) log(`DM channel for user ${user.tag} already discovered`);
+        }
+      } catch (error) {
+        log(`Could not open DM channel for user ID ${userId}: ${error.message}`);
+      }
+    }
+  }
+
   return dmChannels;
 }
 

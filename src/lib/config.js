@@ -97,6 +97,7 @@ export function getConfig(agentName) {
       token: sb.discord?.token,
       botUserId: sb.discord?.bot_user_id,
       dmChannelIds: sb.discord?.dm_channel_ids || [],
+      dmUserIds: sb.discord?.dm_user_ids || [],
       guild: {
         ziquid: {
           webhook: {
