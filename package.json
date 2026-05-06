@@ -10,6 +10,7 @@
     "sb-download-channel-history": "dist/helpers/download-channel-history.js",
     "sb-list-channels": "dist/helpers/list-channels.js",
     "sb-send-message": "dist/helpers/send-message.js",
+    "sb-setup-server-config": "dist/helpers/setup-server-config.js",
     "sociobot": "src/sociobot.js"
   },
   "scripts": {
