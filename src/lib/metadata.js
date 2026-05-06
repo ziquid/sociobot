@@ -18,12 +18,13 @@ function loadServerConfig(guildId, debug = false) {
   const zdsAiRoot = process.env.ZDS_AI_ROOT || '/usr/local/share/zds-ai';
   const configPath = join(zdsAiRoot, 'data', 'sociobot', 'servers', `${guildId}.json`);
   if (!existsSync(configPath)) {
-    if (debug) console.log(`Server config not found: ${configPath}`);
+    console.warn(`[sociobot] Server config missing: ${configPath} — ACL will use defaults. See data/sociobot/servers/README.md.`);
     return null;
   }
   try {
     return JSON.parse(readFileSync(configPath, 'utf8'));
   } catch (error) {
+    console.warn(`[sociobot] Failed to parse ${configPath}: ${error.message}`);
     return null;
   }
 }
