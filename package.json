@@ -7,12 +7,12 @@
   "bin": {
     "botctl": "src/bin/botctl",
     "sb-channel-manage-agent": "dist/helpers/channel-manage-agent.js",
-    "sb-create-webhooks": "dist/helpers/create-webhooks.js",
-    "sb-download-channel-history": "dist/helpers/download-channel-history.js",
+    "sb-create-webhooks": "dist/helpers/admin/create-webhooks.js",
+    "sb-download-channel-history": "dist/helpers/agent/download-channel-history.js",
     "sb-list-channel-members": "dist/helpers/list-channel-members.js",
-    "sb-list-channels": "dist/helpers/list-channels.js",
-    "sb-get-webhook-name": "src/helpers/get-webhook-name.js",
-    "sb-send-message": "dist/helpers/send-message.js",
+    "sb-list-channels": "dist/helpers/agent/list-channels.js",
+    "sb-get-webhook-name": "src/helpers/admin/get-webhook-name.js",
+    "sb-send-message": "dist/helpers/agent/send-message.js",
     "sb-setup-server-config": "dist/helpers/setup-server-config.js",
     "sociobot": "src/sociobot.js"
   },
