@@ -186,8 +186,9 @@ async function resolveChannelId(input: string): Promise<string> {
     return input;
   }
 
-  // Input is a channel name - search for it
-  console.log(`Resolving channel name: ${input}...`);
+  // Input is a channel name - search for it (strip leading # if present)
+  const channelName = input.replace(/^#/, '');
+  console.log(`Resolving channel name: ${channelName}...`);
 
   const matches: Array<{ id: string; name: string; guildName: string | null }> = [];
 
@@ -200,7 +201,7 @@ async function resolveChannelId(input: string): Promise<string> {
     );
 
     for (const [channelId, channel] of channels) {
-      if ('name' in channel && channel.name === input) {
+      if ('name' in channel && channel.name === channelName) {
         matches.push({
           id: channelId,
           name: channel.name,
@@ -212,7 +213,7 @@ async function resolveChannelId(input: string): Promise<string> {
 
   // Handle results
   if (matches.length === 0) {
-    console.error(`Error: No channel found with name '${input}'`);
+    console.error(`Error: No channel found with name '${channelName}'`);
     console.error('\nAvailable channels:');
 
     // Show available channels
@@ -236,7 +237,7 @@ async function resolveChannelId(input: string): Promise<string> {
   }
 
   if (matches.length > 1) {
-    console.error(`Error: Multiple channels found with name '${input}':`);
+    console.error(`Error: Multiple channels found with name '${channelName}':`);
     for (const match of matches) {
       console.error(`  - ${match.guildName}: #${match.name} (${match.id})`);
     }
