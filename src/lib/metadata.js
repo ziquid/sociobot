@@ -31,7 +31,7 @@ function loadServerConfig(guildId, debug = false) {
 const DEFAULT_MAX_ACL = 2;
 const BOT_DMS_MAX_ACL = 4;
 const DM_MAX_ACL = 2;
-const OWNER_MAX_ACL = 999;
+export const OWNER_MAX_ACL = 999;
 export const BOT_DMS_CHANNEL_ID = '1418032549430558782'; // TODO: move to per-server config
 
 /**

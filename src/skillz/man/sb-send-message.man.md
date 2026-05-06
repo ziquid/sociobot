@@ -2,7 +2,7 @@
 name: sb-send-message
 purpose: send a message via discord or add an emoji reaction to a message
 invocation:
-  - sb-send-message <channel-id-or-name> "message" [--encode]
+  - sb-send-message <channel-id-or-name> "message"
   - sb-send-message dm <user-id> "message"
   - sb-send-message webhook <channel-id-or-name> "message"
   - sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"
@@ -16,14 +16,10 @@ Send a message via Discord or add an emoji reaction to an existing message.
 
 ## USAGE
 
-- `sb-send-message <channel-id-or-name> "message" [--encode]`
+- `sb-send-message <channel-id-or-name> "message"`
 - `sb-send-message dm <user-id> "message"`
 - `sb-send-message webhook <channel-id-or-name> "message"`
 - `sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"`
-
-## AUDIO ENCODING
-
-Pass `--encode` to encode the message text as audio (or video if available) and attach it to the Discord message.  Encoding is skipped silently when the target is the `#bot-dms` channel (AI-to-AI messages do not need audio).
 
 ## REACTION SYNTAX
 
