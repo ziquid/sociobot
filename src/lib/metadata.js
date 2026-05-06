@@ -175,13 +175,15 @@ export function wasMentionedInMessage(message, botUserId, agentName) {
     return true;
   }
 
-  // Check for name mention in message content (case-insensitive, Unicode-normalized)
-  const content = message.content.normalize('NFC').toLowerCase();
-  const agentNameLower = agentName.normalize('NFC').toLowerCase();
+  // Normalize Unicode (NFD + strip combining diacritics) so accented display names
+  // match regardless of whether the sender used the accented or unaccented form.
+  const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const content = normalize(message.content);
+  const agentNameNorm = normalize(agentName);
 
   // Check for agent name or group words as a whole word (not part of another word)
   // Use word boundary regex to avoid matching "maiden" when looking for "aiden"
-  const namePattern = new RegExp(`\\b(${agentNameLower}|all|everyone)\\b`, 'i');
+  const namePattern = new RegExp(`\\b(${agentNameNorm}|all|everyone)\\b`, 'i');
   if (namePattern.test(content)) {
     return true;
   }
