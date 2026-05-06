@@ -77,6 +77,15 @@ function keepResponseTags(content, noResponseOk = false) {
 }
 
 /**
+ * Convert bare @numeric_id mentions to Discord's <@id> mention format
+ * @param {string} text - Message text to process
+ * @returns {string} Text with @numeric_id replaced by <@numeric_id>
+ */
+function convertMentions(text) {
+  return text.replace(/@(\d{15,20})\b/g, '<@$1>');
+}
+
+/**
  * Split a long message into chunks that fit within Discord's character limit
  * @param {string} content - The message content to split
  * @returns {string[]} Array of message chunks, each under the Discord limit
@@ -151,7 +160,7 @@ export function splitMessage(content) {
  */
 export async function sendLongMessage(message, content, debug = false, audioPath = null, agentName = null) {
   // Extract and clean the content
-  const cleanedContent = cleanContent(content);
+  const cleanedContent = convertMentions(cleanContent(content));
   if (!cleanedContent) {
     throw new Error('No content to send');
   }
@@ -227,8 +236,7 @@ export async function sendLongMessage(message, content, debug = false, audioPath
  * await sendChannelMessage(channel, 'Hello world', 2);
  */
 export async function sendChannelMessage(channel, content, acl = 1, noResponseOk = false) {
-  // Strip <think></think> tags before processing
-  const cleanedContent = cleanContent(content, noResponseOk);
+  const cleanedContent = convertMentions(cleanContent(content, noResponseOk));
   const chunks = splitMessage(cleanedContent);
 
   for (let i = 0; i < chunks.length; i++) {
@@ -260,8 +268,7 @@ export async function sendChannelMessage(channel, content, acl = 1, noResponseOk
  * await sendWebhookMessage(webhook, 'Hello world', 2, 'Aiden', 'https://example.com/avatar.png');
  */
 export async function sendWebhookMessage(webhook, content, acl = 1, username = null, avatarURL = null, noResponseOk = false) {
-  // Strip <think></think> tags before processing
-  const cleanedContent = cleanContent(content, noResponseOk);
+  const cleanedContent = convertMentions(cleanContent(content, noResponseOk));
   const chunks = splitMessage(cleanedContent);
 
   for (let i = 0; i < chunks.length; i++) {
