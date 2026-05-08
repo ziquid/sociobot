@@ -6,8 +6,8 @@
  */
 
 import { Client, Events, GatewayIntentBits, ChannelType, TextChannel, DMChannel, VoiceChannel, CategoryChannel, ForumChannel, Guild, GuildChannel } from 'discord.js';
-import { loadLastProcessedMessages } from '../../lib/persistence.js';
-import { getConfig } from '../../lib/config.js';
+import { loadLastProcessedMessages } from '../lib/persistence.js';
+import { getConfig } from '../lib/config.js';
 
 // Check for help option
 if (process.argv.includes('--help') || process.argv.includes('-h')) {

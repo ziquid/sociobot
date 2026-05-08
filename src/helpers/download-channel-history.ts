@@ -5,7 +5,7 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { writeFileSync } from 'fs';
 import { Client, Events, GatewayIntentBits, ChannelType, Partials, Message, TextChannel, DMChannel, Embed, Channel } from 'discord.js';
-import { getConfig } from '../../lib/config.js';
+import { getConfig } from '../lib/config.js';
 
 // Change to script directory so it can be called from anywhere
 const __filename = fileURLToPath(import.meta.url);

@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 import { Client, GatewayIntentBits, TextChannel, User } from 'discord.js';
-import { getConfig } from '../../lib/config.js';
-import { sendChannelMessage, sendWebhookMessage } from '../../lib/message-utils.js';
-import { resolveEmoji } from '../../lib/emoji-map.js';
+import { getConfig } from '../lib/config.js';
+import { sendChannelMessage, sendWebhookMessage } from '../lib/message-utils.js';
+import { resolveEmoji } from '../lib/emoji-map.js';
 
 // Usage: sb-send-message <channel-id-or-name> "message text"
 // Usage: sb-send-message dm <user-id> "message text"
