@@ -7,6 +7,11 @@ import https from "https";
 import http from "http";
 import { getACL, getMaxACL, isChannelOwner, OWNER_MAX_ACL, addResponseGuidance, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor, BOT_DMS_CHANNEL_ID } from "./metadata.js";
 
+const MAX_FAILURES = 5;
+const MAX_CONCURRENT = 5;
+const PROCESS_TIMEOUT = 5 * 60 * 1000;
+const BATCH_PROCESS_TIMEOUT = 5 * 60 * 1000;
+
 /**
  * Expand tilde in path to home directory
  * Supports ~, ~/path, and ~username/path
@@ -185,11 +190,6 @@ function isImageFile(contentType) {
 
 let consecutiveFailures = 0;
 let activeProcesses = 0;
-
-const MAX_FAILURES = 5;
-const MAX_CONCURRENT = 5;
-const PROCESS_TIMEOUT = 180000;
-const BATCH_PROCESS_TIMEOUT = 300000;
 
 export function log(msg) {
   const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
