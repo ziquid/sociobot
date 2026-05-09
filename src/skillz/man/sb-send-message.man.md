@@ -2,7 +2,7 @@
 name: sb-send-message
 purpose: send a message via discord or add an emoji reaction to a message
 invocation:
-  - sb-send-message <channel-id-or-name> "message"
+  - sb-send-message [--encode] <channel-id-or-name> "message"
   - sb-send-message dm <user-id> "message"
   - sb-send-message webhook <channel-id-or-name> "message"
   - sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"
@@ -16,10 +16,14 @@ Send a message via Discord or add an emoji reaction to an existing message.
 
 ## USAGE
 
-- `sb-send-message <channel-id-or-name> "message"`
+- `sb-send-message [--encode] <channel-id-or-name> "message"`
 - `sb-send-message dm <user-id> "message"`
 - `sb-send-message webhook <channel-id-or-name> "message"`
 - `sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"`
+
+## FLAGS
+
+`--encode` — Encode the message text as audio (or lip-synced video if a video provider is configured) and attach the result to the first Discord chunk.  Encoding is skipped silently when the target is the bot-dms channel.  Falls back to text-only if encoding fails.
 
 ## REACTION SYNTAX
 
@@ -52,6 +56,7 @@ To add an emoji reaction to an existing message, pass the message ID as the seco
 
 1. `sb-send-message 1234567890 "Hello channel!"`
 1. `sb-send-message bot-testing "Hello channel!"`
+1. `sb-send-message --encode bot-testing "Hello channel!"`
 1. `sb-send-message dm 9876543210 "Hello user!"`
 1. `sb-send-message webhook bot-testing "Hello via webhook!"`
 1. `sb-send-message bot-testing 1234567890123456789 "REACTION:thumbsup"`

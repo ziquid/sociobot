@@ -1,29 +1,36 @@
 #!/usr/bin/env bun
 
+import { unlinkSync } from 'fs';
 import { Client, GatewayIntentBits, TextChannel, User } from 'discord.js';
 import { getConfig } from '../lib/config.js';
 import { sendChannelMessage, sendWebhookMessage } from '../lib/message-utils.js';
 import { resolveEmoji } from '../lib/emoji-map.js';
+import { BOT_DMS_CHANNEL_ID } from '../lib/metadata.js';
+import { encodeSpeech } from '../lib/qcli.js';
 
-// Usage: sb-send-message <channel-id-or-name> "message text"
+// Usage: sb-send-message [--encode] <channel-id-or-name> "message text"
 // Usage: sb-send-message dm <user-id> "message text"
 // Usage: sb-send-message webhook <channel-id-or-name> "message text"
 // Usage: sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"
 // Agent handle is read from ZDS_AI_AGENT_HANDLE environment variable
 
 const agentHandle = process.env.ZDS_AI_AGENT_HANDLE;
-const target = process.argv[2];
-const userId = process.argv[3];
-const messageText = process.argv[4];
+const rawArgs = process.argv.slice(2);
+const ENCODE_FLAG = rawArgs[0] === '--encode';
+const args = ENCODE_FLAG ? rawArgs.slice(1) : rawArgs;
+const target = args[0];
+const userId = args[1];
+const messageText = args[2];
 
 if (!target || target === '-h' || target === '--help') {
-  console.error('Usage: sb-send-message <channel-id-or-name> "message"');
+  console.error('Usage: sb-send-message [--encode] <channel-id-or-name> "message"');
   console.error('   OR: sb-send-message dm <user-id> "message"');
   console.error('   OR: sb-send-message webhook <channel-id-or-name> "message"');
   console.error('   OR: sb-send-message <channel-id-or-name> <message-id> "REACTION:<emoji>"');
   console.error('');
   console.error('Examples:');
   console.error('  sb-send-message 1234567890 "Hello channel!"');
+  console.error('  sb-send-message --encode bot-testing "Hello channel!"');
   console.error('  sb-send-message bot-testing "Hello channel!"');
   console.error('  sb-send-message dm 9876543210 "Hello user!"');
   console.error('  sb-send-message webhook bot-testing "Hello via webhook!"');
@@ -132,8 +139,20 @@ async function sendToChannel(): Promise<void> {
 
   const message = userId; // In channel mode, userId is actually the message
   console.log(`Sending to channel ${channel.name}...`);
-  await sendChannelMessage(channel, message, 1, true);
+  let audioPath: string | null = null;
+  if (ENCODE_FLAG && channel.id !== BOT_DMS_CHANNEL_ID) {
+    audioPath = encodeToAudio(message);
+  }
+  try {
+    await sendChannelMessage(channel, message, 1, true, audioPath);
+  } finally {
+    if (audioPath) { try { unlinkSync(audioPath); } catch {} }
+  }
   console.log('Message sent successfully');
+}
+
+function encodeToAudio(text: string): string | null {
+  return encodeSpeech(text, agentHandle as string);
 }
 
 client.once('clientReady', async () => {

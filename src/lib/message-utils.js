@@ -230,12 +230,13 @@ export async function sendLongMessage(message, content, debug = false, audioPath
  * @param {string} content - The message content to send
  * @param {number} acl -- ACL value to use (default: 1)
  * @param {boolean} noResponseOk -- If true, don't require <response> tags
+ * @param {string|null} audioPath -- Optional path to audio file to attach to first message
  * @returns {Promise<void>}
  * @throws {Error} if failed to send channel message
  * @example
  * await sendChannelMessage(channel, 'Hello world', 2);
  */
-export async function sendChannelMessage(channel, content, acl = 1, noResponseOk = false) {
+export async function sendChannelMessage(channel, content, acl = 1, noResponseOk = false, audioPath = null) {
   const cleanedContent = convertMentions(cleanContent(content, noResponseOk));
   const chunks = splitMessage(cleanedContent);
 
@@ -247,10 +248,13 @@ export async function sendChannelMessage(channel, content, acl = 1, noResponseOk
       .setDescription('\u200B')
       .setFooter({ text: createFooter(acl) });
 
-    await channel.send({
+    const messageOptions = {
       content: prefix + chunk,
-      embeds: [embed]
-    });
+      embeds: [embed],
+      ...(i === 0 && audioPath ? { files: [{ attachment: audioPath }] } : {})
+    };
+
+    await channel.send(messageOptions);
   }
 }
 
