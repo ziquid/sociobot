@@ -1156,7 +1156,7 @@ This message is for your information only.  Do not reply -- replies to this mess
     await processRealtimeMessage(
       {
         content: notification,
-        author: { username: 'Discord System', id: 'system' },
+        author: { username: user.username, id: user.id },
         id: `reaction-${message.id}-${user.id}-${Date.now()}`,
         channel: message.channel,
         createdAt: new Date(),
