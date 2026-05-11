@@ -348,6 +348,8 @@ async function executeQCLI(query, agentName, authorUsername, channel, messageDat
       }
     }, timeoutDuration);
 
+    qcli.stdout.setEncoding('utf8');
+    qcli.stderr.setEncoding('utf8');
     qcli.stdout.on('data', (data) => output += data);
     qcli.stderr.on('data', (data) => errorOutput += data);
 
