@@ -56,7 +56,6 @@ import { loadLastProcessedMessages, saveLastProcessedMessage } from "./lib/persi
 import { processBatchedMessages, processRealtimeMessage, log, encodeSpeech } from "./lib/qcli.js";
 import { setupErrorHandlers } from "./lib/error-handlers.js";
 import { sendLongMessage, cleanContent } from "./lib/message-utils.js";
-// import { getACL, getMaxACL, addResponseGuidance } from "./lib/metadata.js";
 import { BOT_DMS_CHANNEL_ID } from "./lib/metadata.js";
 import {
   isOwnBotMessage,
@@ -819,11 +818,7 @@ async function shouldSendMessage(message, client) {
   const channelSlowdown = await getChannelSlowdown(message.channel.id, client);
   if (channelSlowdown > 0) return MESSAGE_SEND_LATER;
 
-  // Message is from bot?  Delay for now.
-  if (message.author.bot) {
-    // @todo: other conditions to be checked TK.
-    return MESSAGE_SEND_LATER;
-  }
+  if (message.content.startsWith('REACTION:')) return MESSAGE_SEND_NOW;
 
   return MESSAGE_SEND_NOW;
 }
