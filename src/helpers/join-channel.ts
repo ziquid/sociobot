@@ -35,20 +35,17 @@ const client = new Client({
 });
 
 async function resolveChannel(input: string): Promise<GuildChannel | AnyThreadChannel> {
-  if (/^\d+$/.test(input)) {
-    try {
-      const ch = await client.channels.fetch(input);
-      if (ch && 'guild' in ch) {
-        return ch as GuildChannel | AnyThreadChannel;
-      }
-    } catch {
-      // fall through to name search
-    }
-  }
-
+  const byId = /^\d+$/.test(input);
   const name = input.replace(/^#/, '');
+
   for (const guild of client.guilds.cache.values()) {
-    const ch = guild.channels.cache.find(c => c.name === name);
+    // Fetch all channels including restricted ones (requires ManageChannels in the guild)
+    await guild.channels.fetch();
+
+    const ch = byId
+      ? guild.channels.cache.get(input)
+      : guild.channels.cache.find(c => c.name === name);
+
     if (ch) return ch as GuildChannel | AnyThreadChannel;
   }
 
