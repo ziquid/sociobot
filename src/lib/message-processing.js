@@ -3,8 +3,6 @@
  * Handles message filtering, error detection, channel utilities, and debug helpers
  */
 
-import { wasMentionedInMessage } from './metadata.js';
-
 /**
  * Create a filter function to check if a message is from the bot's own account
  * @param {string} botUserId - The bot's user ID
@@ -40,24 +38,25 @@ export function hasValidAgentRecipient(message) {
  * Create a filter function to check if a bot-dms message is relevant to this bot.
  * Messages without a valid agent recipient header (bot @mention) are always dropped.
  * Human messages with a valid header are always relevant.  Bot messages with a valid
- * header are relevant only if they @mention this bot or name it via wasMentionedInMessage().
+ * header are relevant only if they explicitly @mention this bot via Discord ID.
+ *
+ * Note: name-based text search (wasMentionedInMessage) is intentionally NOT used here.
+ * In bot-dms, the explicit <@ID> Discord mention is the authoritative routing signal.
+ * Text-based name matching causes false positives when an agent's name appears in a
+ * message body addressed to someone else (e.g. a team roster or informational mention).
+ *
  * @param {string} botUserId - The bot's user ID
- * @param {string} agentName - Agent name (required)
+ * @param {string} agentName - Agent name (kept for API compatibility, unused)
  * @returns {Function} Filter function that returns true if message is relevant
  * @example
  * const relevantMessages = messages.filter(isBotDMsRelevant(client.user.id, 'aiden'));
  */
 export const isBotDMsRelevant = (botUserId, agentName) => {
-  if (!agentName) {
-    console.error('isBotDMsRelevant: agentName is required');
-    process.exit(1);
-  }
   return (msg) => {
     if (msg.author.id === botUserId) return false;
     if (!hasValidAgentRecipient(msg)) return false;
     if (!msg.author.bot) return true;
     if (msg.mentions.users?.has(botUserId)) return true;
-    if (wasMentionedInMessage(msg, botUserId, agentName)) return true;
     return false;
   };
 };
