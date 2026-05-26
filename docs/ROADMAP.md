@@ -28,20 +28,20 @@
    - [✅] Update message handlers to use three-state logic
 
 - [  ] Determine which helpers should become agent bins or admin bins or deleted
-   - [  ] assign-role.js (admin/agent/delete)
-   - [  ] check-dms.sh (admin/agent/delete)
-   - [  ] check-webhooks.js (admin/agent/delete)
-   - [  ] create-channel.js (admin/agent/delete)
-   - [  ] create-role.js (admin/agent/delete)
-   - [  ] discord-monitor.sh (admin/agent/delete)
-   - [  ] discord-peek.js (admin/agent/delete)
-   - [  ] fix-webhooks.js (admin/agent/delete)
-   - [  ] get-bot-name.js (admin/agent/delete)
-   - [  ] get-webhook-name.js (admin/agent/delete)
-   - [  ] list-roles.js (admin/agent/delete)
-   - [  ] monitor-discord.sh (admin/agent/delete)
-   - [  ] show-channel.js (admin/agent/delete)
-   - [  ] show-message.js (admin/agent/delete)
+   - [  ] assign-role.js (admin: assigns server roles to bots; requires admin credentials)
+   - [  ] check-dms.sh (delete: uses localhost HTTP endpoint that no longer exists)
+   - [  ] check-webhooks.js (admin: webhook diagnostic tool)
+   - [  ] create-channel.js (admin: server management; admin-level operation)
+   - [  ] create-role.js (admin: server management; admin-level operation)
+   - [  ] discord-monitor.sh (admin: recent message viewer for key channels; requires rewrite; uses defunct q chat CLI)
+   - [  ] discord-peek.js (admin: read-only message viewer with channel name lookup; requires rewrite; uses defunct q chat CLI)
+   - [  ] fix-webhooks.js (delete: one-time fix script hardcoded to "test-agent")
+   - [  ] get-bot-name.js (admin: bot identity diagnostic)
+   - [  ] get-webhook-name.js (admin: webhook diagnostic)
+   - [  ] list-roles.js (admin: lists bot roles in guild)
+   - [  ] monitor-discord.sh (admin: multi-channel recent message monitor; requires rewrite; uses defunct q chat CLI)
+   - [  ] show-channel.js (admin: channel diagnostic)
+   - [  ] show-message.js (admin: message lookup diagnostic)
 
 ### New Functionality
 
