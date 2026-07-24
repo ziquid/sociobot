@@ -65,7 +65,7 @@ async function resolveChannel(client: Client, channelIdOrName: string): Promise<
         return channel as TextChannel;
       }
     } catch (error) {
-      // ignored — fall through to name search
+      // ignored -- fall through to name search
     }
   }
 
