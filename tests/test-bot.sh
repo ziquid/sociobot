@@ -21,7 +21,7 @@ fi
 echo "✅ Lib modules syntax OK"
 
 echo "3. Testing module imports..."
-modules=("validation" "persistence" "qcli" "http-server" "error-handlers" "message-utils")
+modules=("validation" "persistence" "qcli" "error-handlers" "message-utils")
 
 for module in "${modules[@]}"; do
     echo "  Testing $module..."
@@ -111,4 +111,3 @@ echo
 echo "Next steps:"
 echo "  - Copy .env.example to .env.yourbot with real tokens"
 echo "  - Test run-once mode: node $BOTNAME yourbot --run-once"
-echo "  - Test with HTTP server: HTTP_PORT=3002 node $BOTNAME yourbot"

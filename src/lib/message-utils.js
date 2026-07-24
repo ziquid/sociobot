@@ -4,7 +4,7 @@
  */
 
 import { EmbedBuilder } from 'discord.js';
-import { createFooter, getACL, getMaxACL, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor } from './metadata.js';
+import { createFooter, getACL, getMaxACL, hasParticipatedInThread, wasMentionedInMessage, isMessageAuthor, BOT_DMS_CHANNEL_ID } from './metadata.js';
 
 /** @constant {number} Maximum characters allowed in a Discord message */
 const DISCORD_MESSAGE_LIMIT = 2000;
@@ -77,12 +77,28 @@ function keepResponseTags(content, noResponseOk = false) {
 }
 
 /**
- * Convert bare @numeric_id mentions to Discord's <@id> mention format
+ * Convert bare @numeric_id and @name mentions to Discord's <@id> mention format
  * @param {string} text - Message text to process
- * @returns {string} Text with @numeric_id replaced by <@numeric_id>
+ * @param {Object|null} guild - Discord guild for name resolution
+ * @returns {string} Text with @mentions replaced by <@id>
  */
-function convertMentions(text) {
-  return text.replace(/@(\d{15,20})\b/g, '<@$1>');
+function convertMentions(text, guild = null) {
+  // Convert bare @numeric_id mentions
+  let result = text.replace(/@(\d{15,20})\b/g, '<@$1>');
+
+  // Convert @name mentions using guild member cache
+  if (guild) {
+    result = result.replace(/@([\w.]+)/g, (match, name) => {
+      const lower = name.toLowerCase();
+      const member = guild.members.cache.find(m =>
+        m.user.username.toLowerCase() === lower ||
+        (m.nickname && m.nickname.toLowerCase() === lower)
+      );
+      return member ? `<@${member.user.id}>` : match;
+    });
+  }
+
+  return result;
 }
 
 /**
@@ -160,9 +176,16 @@ export function splitMessage(content) {
  */
 export async function sendLongMessage(message, content, debug = false, audioPath = null, agentName = null) {
   // Extract and clean the content
-  const cleanedContent = convertMentions(cleanContent(content));
+  const cleanedContent = convertMentions(cleanContent(content), message.guild);
   if (!cleanedContent) {
     throw new Error('No content to send');
+  }
+
+  // Block messages to bot-dms that don't mention a bot recipient
+  if (message.channel.id === BOT_DMS_CHANNEL_ID) {
+    const mentionedId = cleanedContent.match(/<@(\d+)>/)?.[1];
+    const mentionedMember = mentionedId && message.guild?.members.cache.get(mentionedId);
+    if (!mentionedMember?.user.bot) throw new Error('bot-dms message blocked: no bot <@ID> mention in content');
   }
 
   // Calculate ACL for this response
@@ -237,7 +260,15 @@ export async function sendLongMessage(message, content, debug = false, audioPath
  * await sendChannelMessage(channel, 'Hello world', 2);
  */
 export async function sendChannelMessage(channel, content, acl = 1, noResponseOk = false, audioPath = null) {
-  const cleanedContent = convertMentions(cleanContent(content, noResponseOk));
+  const cleanedContent = convertMentions(cleanContent(content, noResponseOk), channel.guild);
+
+  // Block messages to bot-dms that don't mention a bot recipient
+  if (channel.id === BOT_DMS_CHANNEL_ID) {
+    const mentionedId = cleanedContent.match(/<@(\d+)>/)?.[1];
+    const mentionedMember = mentionedId && channel.guild?.members.cache.get(mentionedId);
+    if (!mentionedMember?.user.bot) throw new Error('bot-dms message blocked: no bot <@ID> mention in content');
+  }
+
   const chunks = splitMessage(cleanedContent);
 
   for (let i = 0; i < chunks.length; i++) {
@@ -272,7 +303,15 @@ export async function sendChannelMessage(channel, content, acl = 1, noResponseOk
  * await sendWebhookMessage(webhook, 'Hello world', 2, 'Aiden', 'https://example.com/avatar.png');
  */
 export async function sendWebhookMessage(webhook, content, acl = 1, username = null, avatarURL = null, noResponseOk = false) {
-  const cleanedContent = convertMentions(cleanContent(content, noResponseOk));
+  const cleanedContent = convertMentions(cleanContent(content, noResponseOk), webhook.guild);
+
+  // Block messages to bot-dms that don't mention a bot recipient
+  if (webhook.channelId === BOT_DMS_CHANNEL_ID) {
+    const mentionedId = cleanedContent.match(/<@(\d+)>/)?.[1];
+    const mentionedMember = mentionedId && webhook.guild?.members.cache.get(mentionedId);
+    if (!mentionedMember?.user.bot) throw new Error('bot-dms message blocked: no bot <@ID> mention in content');
+  }
+
   const chunks = splitMessage(cleanedContent);
 
   for (let i = 0; i < chunks.length; i++) {

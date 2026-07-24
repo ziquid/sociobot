@@ -56,8 +56,7 @@ export const isBotDMsRelevant = (botUserId, agentName) => {
     if (msg.author.id === botUserId) return false;
     if (!hasValidAgentRecipient(msg)) return false;
     if (!msg.author.bot) return true;
-    if (msg.mentions.users?.has(botUserId)) return true;
-    return false;
+    return (msg.mentions.users?.has(botUserId));
   };
 };
 

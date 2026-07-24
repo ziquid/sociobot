@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Unit tests for isBotDMsRelevant and hasValidAgentRecipient (sociobot#270)
@@ -13,10 +13,12 @@
  */
 
 import { isBotDMsRelevant, hasValidAgentRecipient } from '../src/lib/message-processing.js';
+import { sendLongMessage, sendChannelMessage, sendWebhookMessage } from '../src/lib/message-utils.js';
+import { BOT_DMS_CHANNEL_ID } from '../src/lib/metadata.js';
 
-const AIDEN_ID = 'aiden-bot-id-111';
-const HARRIET_ID = 'harriet-bot-id-222';
-const ALEX_ID = 'alex-bot-id-333';
+const AIDEN_ID = '111111111111111111';
+const HARRIET_ID = '222222222222222222';
+const ALEX_ID = '333333333333333333';
 
 // Minimal mock of a Discord Collection with has() and some()
 function makeUserCollection(users) {
@@ -128,6 +130,152 @@ assert(
     content: '<@alex-bot-id-333> <@aiden-bot-id-111> sync up on the ICF demo',
   })),
   true
+);
+
+// --- send function bot-dms blocking ---
+console.log('\nsend function bot-dms blocking:');
+
+// BOT_DMS_CHANNEL_ID imported from metadata.js
+
+function makeMemberCache(members) {
+  const map = new Map(members.map(m => [m.user.id, m]));
+  return {
+    get: (id) => map.get(id),
+    find: (fn) => [...map.values()].find(fn),
+  };
+}
+
+const botMember = { user: { id: HARRIET_ID, bot: true, username: 'harriet' }, nickname: 'harriet-nick' };
+const humanMember = { user: { id: 'human-id', bot: false, username: 'human' }, nickname: null };
+const guild = { members: { cache: makeMemberCache([botMember, humanMember]) } };
+
+async function assertThrows(label, fn, expectedMsg) {
+  try {
+    await fn();
+    console.log(`  FAIL ${label}: expected throw but did not throw`);
+    passed = false;
+  } catch (e) {
+    if (e.message.includes(expectedMsg)) {
+      console.log(`  OK  ${label}`);
+    } else {
+      console.log(`  FAIL ${label}: threw "${e.message}", expected to include "${expectedMsg}"`);
+      passed = false;
+    }
+  }
+}
+
+async function assertNoThrow(label, fn) {
+  try {
+    await fn();
+    console.log(`  OK  ${label}`);
+  } catch (e) {
+    console.log(`  FAIL ${label}: unexpected throw: ${e.message}`);
+    passed = false;
+  }
+}
+
+const botDmsChannel = {
+  id: BOT_DMS_CHANNEL_ID,
+  guild,
+  send: async () => {},
+};
+
+const otherChannel = {
+  id: 'other-channel-id',
+  guild,
+  send: async () => {},
+};
+
+const botDmsMessage = {
+  id: 'msg-1',
+  channel: botDmsChannel,
+  guild,
+  content: '',
+  mentions: { everyone: false },
+  author: { id: 'human-id', bot: false, username: 'human' },
+  client: { user: { id: AIDEN_ID, username: 'aiden' } },
+  reply: async () => {},
+  reference: null,
+};
+
+const botDmsWebhook = {
+  channelId: BOT_DMS_CHANNEL_ID,
+  guild,
+  send: async () => {},
+};
+
+const otherWebhook = {
+  channelId: 'other-channel-id',
+  guild,
+  send: async () => {},
+};
+
+// sendChannelMessage
+await assertThrows(
+  'sendChannelMessage to bot-dms with no mention blocked',
+  () => sendChannelMessage(botDmsChannel, '<response>hello everyone</response>', 1, true),
+  'bot-dms message blocked'
+);
+
+await assertThrows(
+  'sendChannelMessage to bot-dms with human @mention blocked',
+  () => sendChannelMessage(botDmsChannel, `<response>hey <@human-id> what's up</response>`, 1, true),
+  'bot-dms message blocked'
+);
+
+await assertNoThrow(
+  'sendChannelMessage to bot-dms with bot @mention allowed',
+  () => sendChannelMessage(botDmsChannel, `<response><@${HARRIET_ID}> hello</response>`, 1, true)
+);
+
+await assertNoThrow(
+  'sendChannelMessage to bot-dms with @username of bot allowed',
+  () => sendChannelMessage(botDmsChannel, '<response>@harriet hello</response>', 1, true)
+);
+
+await assertNoThrow(
+  'sendChannelMessage to bot-dms with @nickname of bot allowed',
+  () => sendChannelMessage(botDmsChannel, '<response>@harriet-nick hello</response>', 1, true)
+);
+
+await assertThrows(
+  'sendChannelMessage to bot-dms with @username of human blocked',
+  () => sendChannelMessage(botDmsChannel, '<response>@human hello</response>', 1, true),
+  'bot-dms message blocked'
+);
+
+await assertNoThrow(
+  'sendChannelMessage to non-bot-dms channel always allowed',
+  () => sendChannelMessage(otherChannel, '<response>hello everyone</response>', 1, true)
+);
+
+// sendWebhookMessage
+await assertThrows(
+  'sendWebhookMessage to bot-dms with no mention blocked',
+  () => sendWebhookMessage(botDmsWebhook, '<response>hello everyone</response>', 1, null, null, true),
+  'bot-dms message blocked'
+);
+
+await assertNoThrow(
+  'sendWebhookMessage to bot-dms with bot @mention allowed',
+  () => sendWebhookMessage(botDmsWebhook, `<response><@${HARRIET_ID}> hello</response>`, 1, null, null, true)
+);
+
+await assertNoThrow(
+  'sendWebhookMessage to non-bot-dms channel always allowed',
+  () => sendWebhookMessage(otherWebhook, '<response>hello everyone</response>', 1, null, null, true)
+);
+
+// sendLongMessage
+await assertThrows(
+  'sendLongMessage to bot-dms with no mention blocked',
+  () => sendLongMessage(botDmsMessage, '<response>hello everyone</response>'),
+  'bot-dms message blocked'
+);
+
+await assertNoThrow(
+  'sendLongMessage to bot-dms with bot @mention allowed',
+  () => sendLongMessage(botDmsMessage, `<response><@${HARRIET_ID}> hello</response>`)
 );
 
 // --- Final result ---

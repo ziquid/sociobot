@@ -842,20 +842,10 @@ async function handleRealtimeMessage(message) {
     process.exit(1);
   }
 
-  // Special handling for bot-dms channel: reject bot messages with no valid agent recipient
-  if (message.channel.id === BOT_DMS_CHANNEL_ID && !hasValidAgentRecipient(message)) {
-    log(`ROUTING: bot-dms message ${message.id} from ${message.author.username} blocked -- no valid agent recipient`);
-    try {
-      await message.react('❌');
-    } catch (error) {
-      log(`ROUTING: could not react to invalid bot-dms message ${message.id}: ${error.message}`);
-    }
-    return;
-  }
-
   // Special handling for bot-dms channel: ignore bot messages not addressed to us, pass human messages through
   if (message.channel.id === BOT_DMS_CHANNEL_ID && !isBotDMsRelevant(client.user.id, AGENT_NAME)(message)) {
     if (DEBUG) log(`ROUTING: Ignoring bot-dms message from ${message.author.username} -- not addressed to us`);
+    saveLastProcessedMessage(AGENT_NAME, message.channel.id, message.id);
     return;
   }
 
@@ -1030,18 +1020,17 @@ client.once(Events.ClientReady, async (readyClient) => {
     process.exit(0);
   }
 
-  // Fetch guild members in background to populate cache (async, non-blocking)
-  readyClient.guilds.fetch().then(guilds => {
-    for (const [guildId, guild] of guilds) {
-      readyClient.guilds.fetch(guildId).then(fullGuild => {
-        fullGuild.members.fetch().then(members => {
-          if (DEBUG) {
-            log(`Fetched ${members.size} members for ${fullGuild.name}: ${members.map(m => m.user.username).join(', ')}`);
-          }
-        }).catch(err => log(`Failed to fetch members for ${fullGuild.name}: ${err.message}`));
-      });
+  // Fetch guild members to populate cache before processing messages
+  const guildsForMembers = await readyClient.guilds.fetch();
+  for (const [guildId] of guildsForMembers) {
+    try {
+      const fullGuild = await readyClient.guilds.fetch(guildId);
+      const members = await fullGuild.members.fetch();
+      if (DEBUG) log(`Fetched ${members.size} members for ${fullGuild.name}: ${members.map(m => m.user.username).join(', ')}`);
+    } catch (err) {
+      log(`Failed to fetch members for guild ${guildId}: ${err.message}`);
     }
-  });
+  }
 
   // Check for missed messages based on scope
   if (shouldProcessDMs()) {
