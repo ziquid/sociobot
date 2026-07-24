@@ -145,7 +145,7 @@ function makeMemberCache(members) {
   };
 }
 
-const botMember = { user: { id: HARRIET_ID, bot: true, username: 'harriet' }, nickname: 'harriet-nick' };
+const botMember = { user: { id: HARRIET_ID, bot: true, username: 'Harriet (AI)' }, nickname: 'harriet-nick' };
 const humanMember = { user: { id: 'human-id', bot: false, username: 'human' }, nickname: null };
 const guild = { members: { cache: makeMemberCache([botMember, humanMember]) } };
 

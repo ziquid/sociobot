@@ -92,6 +92,7 @@ function convertMentions(text, guild = null) {
       const lower = name.toLowerCase();
       const member = guild.members.cache.find(m =>
         m.user.username.toLowerCase() === lower ||
+        m.user.username.toLowerCase().startsWith(lower + ' ') ||
         (m.nickname && m.nickname.toLowerCase() === lower)
       );
       return member ? `<@${member.user.id}>` : match;
