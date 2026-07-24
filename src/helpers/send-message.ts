@@ -51,6 +51,7 @@ const config = getConfig(agentHandle);
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.GuildMessages
   ]
@@ -158,6 +159,7 @@ function encodeToAudio(text: string): string | null {
 client.once('clientReady', async () => {
   console.log(`Connected as ${client.user?.tag}`);
   try {
+    for (const guild of client.guilds.cache.values()) await guild.members.fetch();
     if (target === 'dm') await sendDM();
     else if (target === 'webhook') await sendWebhook();
     else await sendToChannel();
